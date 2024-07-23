@@ -1,0 +1,24 @@
+# cmake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+install_manifest.txt
+compile_commands.json
+_deps
+.cache
+.cmake
+*.cmake
+
+# compile output
+*.so
+*.so.*
+*.o
+*.a
+
+# shaders
+*.gen.h
+
+app
