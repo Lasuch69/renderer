@@ -405,9 +405,9 @@ VkImage imageCreate(VkDevice device, uint32_t width, uint32_t height, VkFormat f
 	return image;
 }
 
-VkImageView imageViewCreate(VkDevice device, VkImage image, VkFormat format) {
+VkImageView imageViewCreate(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectMask) {
 	VkImageSubresourceRange subresourceRange = {
-		.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+		.aspectMask = aspectMask,
 		.baseMipLevel = 0,
 		.levelCount = 1,
 		.baseArrayLayer = 0,
@@ -427,6 +427,18 @@ VkImageView imageViewCreate(VkDevice device, VkImage image, VkFormat format) {
 			vkCreateImageView(device, &createInfo, nullptr, &imageView) == VK_SUCCESS, "Image view creation failed!");
 
 	return imageView;
+}
+
+void attachmentCreate(VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage,
+		VkImageAspectFlags aspectMask, VkPhysicalDeviceMemoryProperties memProperties, Attachment *attachment) {
+	attachment->image = imageCreate(device, width, height, format, usage, memProperties, &attachment->imageMemory);
+	attachment->imageView = imageViewCreate(device, attachment->image, format, aspectMask);
+}
+
+void attachmentDestroy(VkDevice device, Attachment *attachment) {
+	vkDestroyImageView(device, attachment->imageView, nullptr);
+	vkDestroyImage(device, attachment->image, nullptr);
+	vkFreeMemory(device, attachment->imageMemory, nullptr);
 }
 
 void VulkanContext::_swapchainCreate(uint32_t width, uint32_t height) {
@@ -490,38 +502,185 @@ void VulkanContext::_swapchainCreate(uint32_t width, uint32_t height) {
 	VkImage *swapchainImages = new VkImage[swapchainImageCount];
 	vkGetSwapchainImagesKHR(m_device, m_swapchain, &swapchainImageCount, swapchainImages);
 
-	VkFormat colorFormat = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
-	m_colorImage = imageCreate(m_device, m_swapchainExtent.width, m_swapchainExtent.height, colorFormat,
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, m_memoryProperties, &m_colorImageMemory);
+	uint32_t _width = m_swapchainExtent.width;
+	uint32_t _height = m_swapchainExtent.height;
 
-	m_colorImageView = imageViewCreate(m_device, m_colorImage, colorFormat);
+	VkFormat albedoFormat = VK_FORMAT_R8G8B8A8_SRGB;
+	attachmentCreate(m_device, _width, _height, albedoFormat,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, VK_IMAGE_ASPECT_COLOR_BIT,
+			m_memoryProperties, &m_albedoAttachment);
 
-	VkAttachmentDescription colorAttachmentDescription = {
+	VkFormat normalFormat = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+	attachmentCreate(m_device, _width, _height, normalFormat,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, VK_IMAGE_ASPECT_COLOR_BIT,
+			m_memoryProperties, &m_normalAttachment);
+
+	VkFormat roughnessMetallicFormat = VK_FORMAT_R8G8_UNORM;
+	attachmentCreate(m_device, _width, _height, roughnessMetallicFormat,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, VK_IMAGE_ASPECT_COLOR_BIT,
+			m_memoryProperties, &m_roughnessMetallicAttachment);
+
+	VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
+	attachmentCreate(m_device, _width, _height, depthFormat,
+			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
+			VK_IMAGE_ASPECT_DEPTH_BIT, m_memoryProperties, &m_depthAttachment);
+
+	VkAttachmentDescription finalColorDescription = {
 		.format = surfaceFormat.format,
 		.samples = VK_SAMPLE_COUNT_1_BIT,
-		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+		.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 		.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 	};
 
-	VkAttachmentReference colorAttachmentReference = {
+	VkAttachmentDescription albedoDescription = {
+		.format = albedoFormat,
+		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+	};
+
+	VkAttachmentDescription normalDescription = {
+		.format = normalFormat,
+		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+	};
+
+	VkAttachmentDescription roughnessMetallicDescription = {
+		.format = roughnessMetallicFormat,
+		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+	};
+
+	VkAttachmentDescription depthDescription = {
+		.format = depthFormat,
+		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+	};
+
+	VkAttachmentReference finalColorReference = {
 		.attachment = 0,
 		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 	};
 
-	VkSubpassDescription subpassDescription = {
+	VkAttachmentReference albedoReference = {
+		.attachment = 1,
+		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+	};
+
+	VkAttachmentReference normalReference = {
+		.attachment = 2,
+		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+	};
+
+	VkAttachmentReference roughnessMetallicReference = {
+		.attachment = 3,
+		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+	};
+
+	VkAttachmentReference depthReference = {
+		.attachment = 4,
+		.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+	};
+
+	VkAttachmentReference albedoInputReference = {
+		.attachment = 1,
+		.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	};
+
+	VkAttachmentReference normalInputReference = {
+		.attachment = 2,
+		.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	};
+
+	VkAttachmentReference roughnessMetallicInputReference = {
+		.attachment = 3,
+		.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	};
+
+	VkAttachmentReference depthInputReference = {
+		.attachment = 4,
+		.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	};
+
+	VkAttachmentReference geometryColorAttachments[] = {
+		albedoReference,
+		normalReference,
+		roughnessMetallicReference,
+	};
+
+	uint32_t geometryColorAttachmentCount = sizeof(geometryColorAttachments) / sizeof(geometryColorAttachments[0]);
+
+	VkSubpassDescription geometrySubpass = {
 		.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+		.colorAttachmentCount = geometryColorAttachmentCount,
+		.pColorAttachments = geometryColorAttachments,
+		.pDepthStencilAttachment = &depthReference,
+	};
+
+	VkAttachmentReference lightInputAttachments[] = {
+		albedoInputReference,
+		normalInputReference,
+		roughnessMetallicInputReference,
+		depthInputReference,
+	};
+
+	uint32_t lightInputAttachmentCount = sizeof(lightInputAttachments) / sizeof(lightInputAttachments[0]);
+
+	VkSubpassDescription lightSubpass = {
+		.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+		.inputAttachmentCount = lightInputAttachmentCount,
+		.pInputAttachments = lightInputAttachments,
 		.colorAttachmentCount = 1,
-		.pColorAttachments = &colorAttachmentReference,
+		.pColorAttachments = &finalColorReference,
+	};
+
+	VkSubpassDescription subpasses[] = {
+		geometrySubpass,
+		lightSubpass,
+	};
+
+	uint32_t subpassCount = sizeof(subpasses) / sizeof(subpasses[0]);
+
+	VkAttachmentDescription renderPassAttachments[] = {
+		finalColorDescription,
+		albedoDescription,
+		normalDescription,
+		roughnessMetallicDescription,
+		depthDescription,
+	};
+
+	uint32_t renderPassAttachmentCount = sizeof(renderPassAttachments) / sizeof(renderPassAttachments[0]);
+
+	VkSubpassDependency dependency = {
+		.srcSubpass = GEOMETRY_PASS,
+		.dstSubpass = LIGHT_PASS,
+		.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
 	};
 
 	VkRenderPassCreateInfo renderPassInfo = {
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-		.attachmentCount = 1,
-		.pAttachments = &colorAttachmentDescription,
-		.subpassCount = 1,
-		.pSubpasses = &subpassDescription,
+		.attachmentCount = renderPassAttachmentCount,
+		.pAttachments = renderPassAttachments,
+		.subpassCount = subpassCount,
+		.pSubpasses = subpasses,
+		.dependencyCount = 1,
+		.pDependencies = &dependency,
 	};
 
 	CHECK_VK_RESULT(vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_renderPass) == VK_SUCCESS,
@@ -531,13 +690,24 @@ void VulkanContext::_swapchainCreate(uint32_t width, uint32_t height) {
 	m_swapchainImages = new SwapchainImageResource[swapchainImageCount];
 
 	for (uint32_t i = 0; i < swapchainImageCount; i++) {
-		VkImageView swapchainView = imageViewCreate(m_device, swapchainImages[i], surfaceFormat.format);
+		VkImageView swapchainView =
+				imageViewCreate(m_device, swapchainImages[i], surfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
+
+		VkImageView attachments[] = {
+			swapchainView,
+			m_albedoAttachment.imageView,
+			m_normalAttachment.imageView,
+			m_roughnessMetallicAttachment.imageView,
+			m_depthAttachment.imageView,
+		};
+
+		uint32_t attachmentCount = sizeof(attachments) / sizeof(attachments[0]);
 
 		VkFramebufferCreateInfo framebufferInfo = {
 			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 			.renderPass = m_renderPass,
-			.attachmentCount = 1,
-			.pAttachments = &swapchainView,
+			.attachmentCount = attachmentCount,
+			.pAttachments = attachments,
 			.width = m_swapchainExtent.width,
 			.height = m_swapchainExtent.height,
 			.layers = 1,
@@ -552,9 +722,10 @@ void VulkanContext::_swapchainCreate(uint32_t width, uint32_t height) {
 }
 
 void VulkanContext::_swapchainDestroy() {
-	vkDestroyImageView(m_device, m_colorImageView, nullptr);
-	vkDestroyImage(m_device, m_colorImage, nullptr);
-	vkFreeMemory(m_device, m_colorImageMemory, nullptr);
+	attachmentDestroy(m_device, &m_albedoAttachment);
+	attachmentDestroy(m_device, &m_normalAttachment);
+	attachmentDestroy(m_device, &m_roughnessMetallicAttachment);
+	attachmentDestroy(m_device, &m_depthAttachment);
 
 	for (uint32_t i = 0; i < m_swapchainImageCount; i++) {
 		vkDestroyFramebuffer(m_device, m_swapchainImages[i].framebuffer, nullptr);
@@ -618,6 +789,22 @@ VkFramebuffer VulkanContext::framebuffer(uint32_t imageIndex) const {
 
 VkCommandPool VulkanContext::commandPool() const {
 	return m_commandPool;
+}
+
+Attachment VulkanContext::albedoAttachment() const {
+	return m_albedoAttachment;
+}
+
+Attachment VulkanContext::normalAttachment() const {
+	return m_normalAttachment;
+}
+
+Attachment VulkanContext::roughnessMetallicAttachment() const {
+	return m_roughnessMetallicAttachment;
+}
+
+Attachment VulkanContext::depthAttachment() const {
+	return m_depthAttachment;
 }
 
 bool VulkanContext::isInitialized() const {

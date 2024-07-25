@@ -6,12 +6,190 @@
 #include <vma/vk_mem_alloc.h>
 #include <vulkan/vulkan_core.h>
 
+#include "shaders/light_pass.gen.h"
+
 #include "rendering_device.h"
 
 #define CHECK_VK_RESULT(_expr, msg)                                                                                    \
 	if (!(_expr)) {                                                                                                    \
 		printf("%s\n", msg);                                                                                           \
 	}
+
+VkResult pipelineCreate(VkDevice device, VkShaderModule vertexModule, VkShaderModule fragmentModule,
+		VkPipelineLayout pipelineLayout, VkRenderPass renderPass, uint32_t subpass, VkPipeline *pipeline) {
+	VkPipelineShaderStageCreateInfo vertexStageInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+		.stage = VK_SHADER_STAGE_VERTEX_BIT,
+		.module = vertexModule,
+		.pName = "main",
+	};
+
+	VkPipelineShaderStageCreateInfo fragmentStageInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+		.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+		.module = fragmentModule,
+		.pName = "main",
+	};
+
+	VkPipelineShaderStageCreateInfo shaderStageInfos[2] = {
+		vertexStageInfo,
+		fragmentStageInfo,
+	};
+
+	VkPipelineVertexInputStateCreateInfo vertexInputStateInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+	};
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+		.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+	};
+
+	VkPipelineViewportStateCreateInfo viewportStateInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+		.viewportCount = 1,
+		.scissorCount = 1,
+	};
+
+	VkPipelineRasterizationStateCreateInfo rasterizationStateInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+		.rasterizerDiscardEnable = VK_FALSE,
+		.polygonMode = VK_POLYGON_MODE_FILL,
+		.cullMode = VK_CULL_MODE_BACK_BIT,
+		.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+		.depthBiasEnable = VK_FALSE,
+		.lineWidth = 1.0f,
+	};
+
+	VkPipelineMultisampleStateCreateInfo multisampleStateInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+		.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+		.sampleShadingEnable = VK_FALSE,
+	};
+
+	VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+		.depthTestEnable = VK_FALSE,
+		.depthWriteEnable = VK_FALSE,
+		.depthCompareOp = VK_COMPARE_OP_NEVER,
+		.depthBoundsTestEnable = VK_FALSE,
+		.stencilTestEnable = VK_FALSE,
+	};
+
+	VkPipelineColorBlendAttachmentState colorBlendAttachment = {
+		.blendEnable = VK_FALSE,
+		.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+						  VK_COLOR_COMPONENT_A_BIT,
+	};
+
+	VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+		.logicOpEnable = VK_FALSE,
+		.logicOp = VK_LOGIC_OP_COPY,
+		.attachmentCount = 1,
+		.pAttachments = &colorBlendAttachment,
+		.blendConstants = { 0.0f, 0.0f, 0.0f, 0.0f },
+	};
+
+	VkDynamicState dynamicStates[2] = {
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR,
+	};
+
+	VkPipelineDynamicStateCreateInfo dynamicStateInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+		.dynamicStateCount = 2,
+		.pDynamicStates = dynamicStates,
+	};
+
+	VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+		.stageCount = 2,
+		.pStages = shaderStageInfos,
+		.pVertexInputState = &vertexInputStateInfo,
+		.pInputAssemblyState = &inputAssemblyStateInfo,
+		.pViewportState = &viewportStateInfo,
+		.pRasterizationState = &rasterizationStateInfo,
+		.pMultisampleState = &multisampleStateInfo,
+		.pDepthStencilState = &depthStencilStateInfo,
+		.pColorBlendState = &colorBlendStateInfo,
+		.pDynamicState = &dynamicStateInfo,
+		.layout = pipelineLayout,
+		.renderPass = renderPass,
+		.subpass = subpass,
+	};
+
+	return vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineCreateInfo, nullptr, pipeline);
+}
+
+void RD::_updateGBufferInputAttachments() {
+	VkDescriptorImageInfo albedoInfo = {
+		.imageView = m_context.albedoAttachment().imageView,
+		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	};
+
+	VkDescriptorImageInfo normalInfo = {
+		.imageView = m_context.normalAttachment().imageView,
+		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	};
+
+	VkDescriptorImageInfo roughnessMetallicInfo = {
+		.imageView = m_context.roughnessMetallicAttachment().imageView,
+		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	};
+
+	VkDescriptorImageInfo depthInfo = {
+		.imageView = m_context.depthAttachment().imageView,
+		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	};
+
+	VkWriteDescriptorSet albedoWriteInfo = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = m_gbufferSet,
+		.dstBinding = 0,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+		.pImageInfo = &albedoInfo,
+	};
+
+	VkWriteDescriptorSet normalWriteInfo = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = m_gbufferSet,
+		.dstBinding = 1,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+		.pImageInfo = &normalInfo,
+	};
+
+	VkWriteDescriptorSet roughnessMetallicWriteInfo = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = m_gbufferSet,
+		.dstBinding = 2,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+		.pImageInfo = &roughnessMetallicInfo,
+	};
+
+	VkWriteDescriptorSet depthWriteInfo = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = m_gbufferSet,
+		.dstBinding = 3,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+		.pImageInfo = &depthInfo,
+	};
+
+	VkWriteDescriptorSet writeInfos[] = {
+		albedoWriteInfo,
+		normalWriteInfo,
+		roughnessMetallicWriteInfo,
+		depthWriteInfo,
+	};
+
+	uint32_t writeInfoCount = sizeof(writeInfos) / sizeof(writeInfos[0]);
+
+	vkUpdateDescriptorSets(m_context.device(), writeInfoCount, writeInfos, 0, nullptr);
+}
 
 VkCommandBuffer RD::_beginSingleTimeCommands() {
 	VkCommandBufferAllocateInfo allocInfo = {
@@ -251,23 +429,21 @@ void RD::draw() {
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 		m_context.windowResize(m_width, m_height);
+		_updateGBufferInputAttachments();
 	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 		printf("Swapchain image acquire failed!\n");
 	}
 
 	vkResetFences(m_context.device(), 1, &m_renderFences[m_frame]);
 
-	vkResetCommandBuffer(m_commandBuffers[m_frame], 0);
+	VkCommandBuffer commandBuffer = m_commandBuffers[m_frame];
+	vkResetCommandBuffer(commandBuffer, 0);
 
 	VkCommandBufferBeginInfo beginInfo = {
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 	};
 
-	vkBeginCommandBuffer(m_commandBuffers[m_frame], &beginInfo);
-
-	VkClearValue clearValue = {
-		.color = { { 0.0f, 0.0f, 0.0f, 1.0f } },
-	};
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
 	VkExtent2D extent = m_context.swapchainExtent();
 
@@ -286,22 +462,38 @@ void RD::draw() {
 		.extent = extent,
 	};
 
+	VkClearValue clearValues[5];
+	clearValues[1].color = VkClearColorValue{ { 0.0, 0.0, 0.0, 0.0 } };
+	clearValues[2].color = VkClearColorValue{ { 0.0, 0.0, 0.0, 0.0 } };
+	clearValues[3].color = VkClearColorValue{ { 0.0, 0.0, 0.0, 0.0 } };
+	clearValues[4].depthStencil = VkClearDepthStencilValue{ 1.0, 0 };
+
+	uint32_t clearValueCount = sizeof(clearValues) / sizeof(clearValues[0]);
+
 	VkRenderPassBeginInfo renderPassInfo = {
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 		.renderPass = m_context.renderPass(),
 		.framebuffer = m_context.framebuffer(imageIndex),
 		.renderArea = renderArea,
-		.clearValueCount = 1,
-		.pClearValues = &clearValue,
+		.clearValueCount = clearValueCount,
+		.pClearValues = clearValues,
 	};
 
-	vkCmdBeginRenderPass(m_commandBuffers[m_frame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-	vkCmdSetViewport(m_commandBuffers[m_frame], 0, 1, &viewport);
-	vkCmdSetScissor(m_commandBuffers[m_frame], 0, 1, &scissor);
+	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	vkCmdEndRenderPass(m_commandBuffers[m_frame]);
-	vkEndCommandBuffer(m_commandBuffers[m_frame]);
+	vkCmdNextSubpass(commandBuffer, VK_SUBPASS_CONTENTS_INLINE);
+
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightPipeline);
+	vkCmdBindDescriptorSets(
+			commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightPipelineLayout, 0, 1, &m_gbufferSet, 0, nullptr);
+
+	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+	vkCmdEndRenderPass(commandBuffer);
+	vkEndCommandBuffer(commandBuffer);
 
 	VkPipelineStageFlags waitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
@@ -311,7 +503,7 @@ void RD::draw() {
 		.pWaitSemaphores = &m_presentSemaphores[m_frame],
 		.pWaitDstStageMask = &waitDstStageMask,
 		.commandBufferCount = 1,
-		.pCommandBuffers = &m_commandBuffers[m_frame],
+		.pCommandBuffers = &commandBuffer,
 		.signalSemaphoreCount = 1,
 		.pSignalSemaphores = &m_renderSemaphores[m_frame],
 	};
@@ -333,6 +525,8 @@ void RD::draw() {
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_resized) {
 		m_context.windowResize(m_width, m_height);
+		_updateGBufferInputAttachments();
+
 		m_resized = false;
 	} else if (result != VK_SUCCESS) {
 		printf("Swapchain image presentation failed!\n");
@@ -396,9 +590,7 @@ void RD::windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
 
 	{
 		VkDescriptorPoolSize poolSizes[] = {
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, FRAMES_IN_FLIGHT },
-			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1 },
-			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1 },
+			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 4 },
 		};
 
 		uint32_t maxSets = 0;
@@ -416,6 +608,89 @@ void RD::windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
 		CHECK_VK_RESULT(vkCreateDescriptorPool(m_context.device(), &descriptorPoolCreateInfo, nullptr,
 								&m_descriptorPool) == VK_SUCCESS,
 				"Descriptor pool creation failed!");
+	}
+
+	// gbuffer
+
+	{
+		VkDescriptorSetLayoutBinding albedoBinding = {
+			.binding = 0,
+			.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+			.descriptorCount = 1,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		};
+
+		VkDescriptorSetLayoutBinding normalBinding = {
+			.binding = 1,
+			.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+			.descriptorCount = 1,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		};
+
+		VkDescriptorSetLayoutBinding roughnessMetallicBinding = {
+			.binding = 2,
+			.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+			.descriptorCount = 1,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		};
+
+		VkDescriptorSetLayoutBinding depthBinding = {
+			.binding = 3,
+			.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+			.descriptorCount = 1,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		};
+
+		VkDescriptorSetLayoutBinding bindings[] = {
+			albedoBinding,
+			normalBinding,
+			roughnessMetallicBinding,
+			depthBinding,
+		};
+
+		uint32_t bindingCount = sizeof(bindings) / sizeof(bindings[0]);
+
+		VkDescriptorSetLayoutCreateInfo createInfo = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			.bindingCount = bindingCount,
+			.pBindings = bindings,
+		};
+
+		CHECK_VK_RESULT(vkCreateDescriptorSetLayout(m_context.device(), &createInfo, nullptr, &m_gbufferSetLayout) ==
+								VK_SUCCESS,
+				"GBuffer descriptor set layout creation failed!");
+
+		VkDescriptorSetAllocateInfo allocInfo = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.descriptorPool = m_descriptorPool,
+			.descriptorSetCount = 1,
+			.pSetLayouts = &m_gbufferSetLayout,
+		};
+
+		CHECK_VK_RESULT(vkAllocateDescriptorSets(m_context.device(), &allocInfo, &m_gbufferSet) == VK_SUCCESS,
+				"GBuffer descriptor set allocation failed!");
+
+		_updateGBufferInputAttachments();
+	}
+
+	{
+		VkPipelineLayoutCreateInfo layoutInfo = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			.setLayoutCount = 1,
+			.pSetLayouts = &m_gbufferSetLayout,
+		};
+
+		CHECK_VK_RESULT(
+				vkCreatePipelineLayout(m_context.device(), &layoutInfo, nullptr, &m_lightPipelineLayout) == VK_SUCCESS,
+				"Light pipeline layout creation failed!");
+
+		LightPassShader shader;
+		shader.compile(m_context.device());
+
+		CHECK_VK_RESULT(
+				pipelineCreate(m_context.device(), shader.vertexStage(), shader.fragmentStage(), m_lightPipelineLayout,
+						m_context.renderPass(), LIGHT_PASS, &m_lightPipeline) == VK_SUCCESS,
+				"Light pipeline creation failed!");
 	}
 
 	m_initialized = true;

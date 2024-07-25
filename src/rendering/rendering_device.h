@@ -40,7 +40,14 @@ private:
 	VkFence m_renderFences[FRAMES_IN_FLIGHT];
 
 	VkDescriptorPool m_descriptorPool;
-	VkDescriptorSetLayout m_uniformSetLayout;
+
+	VkDescriptorSetLayout m_gbufferSetLayout;
+	VkDescriptorSet m_gbufferSet;
+
+	VkPipelineLayout m_lightPipelineLayout;
+	VkPipeline m_lightPipeline;
+
+	void _updateGBufferInputAttachments();
 
 	VkCommandBuffer _beginSingleTimeCommands();
 	void _endSingleTimeCommands(VkCommandBuffer commandBuffer);

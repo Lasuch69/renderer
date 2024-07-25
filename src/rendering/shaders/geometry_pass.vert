@@ -24,6 +24,7 @@ layout(push_constant) uniform CameraConstant {
 
 void main() {
 	mat4 model = mat4(modelMatrix0, modelMatrix1, modelMatrix2, modelMatrix3);
+	
 	vec3 T = normalize(vec3(model * vec4(vertTangent, 0.0)));
 	vec3 N = normalize(vec3(model * vec4(vertNormal, 0.0)));
 

@@ -1,7 +1,17 @@
 #ifndef VULKAN_CONTEXT_H
 #define VULKAN_CONTEXT_H
 
+#include <cstdint>
 #include <vulkan/vulkan_core.h>
+
+const uint32_t GEOMETRY_PASS = 0;
+const uint32_t LIGHT_PASS = 1;
+
+typedef struct {
+	VkImage image;
+	VkDeviceMemory imageMemory;
+	VkImageView imageView;
+} Attachment;
 
 class VulkanContext {
 private:
@@ -34,9 +44,11 @@ private:
 	VkExtent2D m_swapchainExtent;
 	VkRenderPass m_renderPass;
 
-	VkImage m_colorImage;
-	VkDeviceMemory m_colorImageMemory;
-	VkImageView m_colorImageView;
+	// gbuffer
+	Attachment m_albedoAttachment;
+	Attachment m_normalAttachment;
+	Attachment m_roughnessMetallicAttachment;
+	Attachment m_depthAttachment;
 
 	VkCommandPool m_commandPool;
 
@@ -59,6 +71,11 @@ public:
 	VkRenderPass renderPass() const;
 	VkFramebuffer framebuffer(uint32_t imageIndex) const;
 	VkCommandPool commandPool() const;
+
+	Attachment albedoAttachment() const;
+	Attachment normalAttachment() const;
+	Attachment roughnessMetallicAttachment() const;
+	Attachment depthAttachment() const;
 
 	bool isInitialized() const;
 
