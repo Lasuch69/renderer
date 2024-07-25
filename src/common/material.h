@@ -14,13 +14,28 @@ enum CullMode {
 	CULL_DISABLED,
 };
 
+enum SamplerMode {
+	SAMPLER_CLAMP_NEAREST,
+	SAMPLER_CLAMP_LINEAR,
+	SAMPLER_REPEAT_NEAREST,
+	SAMPLER_REPEAT_LINEAR,
+	SAMPLER_CLAMP_NEAREST_MIPMAPS,
+	SAMPLER_CLAMP_LINEAR_MIPMAPS,
+	SAMPLER_REPEAT_NEAREST_MIPMAPS,
+	SAMPLER_REPEAT_LINEAR_MIPMAPS,
+};
+
 typedef struct {
+	float factor[3];
+	uint64_t texture;
+} EmissionData;
+
+typedef struct {
+	SamplerMode samplerMode;
 	AlphaMode alphaMode;
 	CullMode cullMode;
 	bool unlit;
-} ShadingMode;
 
-typedef struct {
 	float albedoFactor[3];
 	uint64_t albedoTexture;
 
@@ -29,8 +44,8 @@ typedef struct {
 	float metallicFactor;
 	uint64_t occlusionRoughnessMetallicTexture;
 
-	float emissionFactor[3];
-	uint64_t emissionTexture;
+	// specialization
+	EmissionData *emissionData;
 } Material;
 
 #endif // !MATERIAL_H

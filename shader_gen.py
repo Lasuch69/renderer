@@ -3,7 +3,7 @@
 import os
 import subprocess
 
-SHADER_DIR = 'src/rendering/pipeline/shaders'
+SHADER_DIR = 'src/rendering/shaders'
 
 
 class Shader:
