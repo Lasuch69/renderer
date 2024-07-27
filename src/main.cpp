@@ -5,6 +5,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
 
+#include "io/gltf_loader.h"
 #include "rendering/rendering_server.h"
 
 const int WIDTH = 800;
@@ -62,6 +63,11 @@ int main(int argc, char *argv[]) {
 				int width, height;
 				SDL_Vulkan_GetDrawableSize(window, &width, &height);
 				RS::singleton().windowResize(width, height);
+			}
+
+			if (event.type == SDL_DROPFILE) {
+				const char *file = event.drop.file;
+				GLTFLoader::loadFile(file);
 			}
 		}
 

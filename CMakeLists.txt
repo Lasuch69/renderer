@@ -19,5 +19,5 @@ add_executable(app ${SOURCE}
 )
 
 target_include_directories(app PRIVATE src thirdparty)
-target_compile_options(app PRIVATE -Wall)
+target_compile_options(app PRIVATE -Wall -g)
 target_link_libraries(app PRIVATE Vulkan::Vulkan SDL2::SDL2)

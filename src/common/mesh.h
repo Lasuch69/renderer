@@ -17,15 +17,16 @@ typedef struct {
 } IndexArray;
 
 typedef struct {
+	AABB aabb;
+	uint32_t material;
+
 	VertexArray vertexArray;
 	IndexArray indexArray;
-	uint64_t materialIndex;
 } Primitive;
 
 typedef struct {
 	Primitive *primitives;
-	uint32_t primitveCount;
-	AABB aabb;
+	uint32_t primitiveCount;
 } Mesh;
 
 #endif // !MESH_H
