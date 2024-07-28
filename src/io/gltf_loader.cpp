@@ -13,24 +13,13 @@
 
 #include "gltf_loader.h"
 
-// PI * 4
-const float CANDELA_TO_LUMEN = 12.566370614;
-
-const char *REQUIRED_ATTRIBUTES[] = {
-	"POSITION",
-	"NORMAL",
-	"TEXCOORD_0",
-};
-
-static float min(float a, float b) {
-	return (a < b) ? a : b;
-}
-
-static float max(float a, float b) {
-	return (a > b) ? a : b;
-}
-
 bool checkRequiredAttributes(const cgltf_attribute *attributes, uint32_t attributeCount) {
+	const char *REQUIRED_ATTRIBUTES[] = {
+		"POSITION",
+		"NORMAL",
+		"TEXCOORD_0",
+	};
+
 	for (const char *requiredAttribute : REQUIRED_ATTRIBUTES) {
 		bool isRequiredAttributeFound = false;
 		for (uint32_t i = 0; i < attributeCount; i++) {
@@ -50,12 +39,12 @@ bool checkRequiredAttributes(const cgltf_attribute *attributes, uint32_t attribu
 	return true;
 }
 
-typedef struct {
-	float data[3];
-} vec3;
-
 void tangentsGenerate(const uint32_t *indices, uint32_t indexCount, Vertex *vertices, uint32_t vertexCount) {
 	assert(indexCount % 3 == 0);
+
+	typedef struct {
+		float data[3];
+	} vec3;
 
 	float *averages = (float *)calloc(vertexCount, sizeof(float));
 	vec3 *tangents = (vec3 *)calloc(vertexCount, sizeof(vec3));
@@ -227,13 +216,17 @@ Mesh meshLoad(const cgltf_mesh &mesh) {
 
 		tangentsGenerate(indices, indexCount, vertices, vertexCount);
 
+		for (uint32_t j = 0; j < indexCount; j++) {
+			printf("%d, \n", indices[j]);
+		}
+
 		for (uint32_t j = 0; j < vertexCount; j++) {
 			const Vertex &v = vertices[j];
 
-			printf("Position: %.3f, %.3f, %.3f\n", v.position[0], v.position[1], v.position[2]);
-			printf("Normal:   %.3f, %.3f, %.3f\n", v.normal[0], v.normal[1], v.normal[2]);
-			printf("Tangent:  %.3f, %.3f, %.3f\n", v.tangent[0], v.tangent[1], v.tangent[2]);
-			printf("TexCoord: %.3f, %.3f\n", v.texCoord[0], v.texCoord[1]);
+			printf("{ { %.1f, %.1f, %.1f }, ", v.position[0], v.position[1], v.position[2]);
+			printf(" { %.1f, %.1f, %.1f }, ", v.normal[0], v.normal[1], v.normal[2]);
+			printf(" { %.1f, %.1f, %.1f }, ", v.tangent[0], v.tangent[1], v.tangent[2]);
+			printf(" { %.3f, %.3f } }, \n", v.texCoord[0], v.texCoord[1]);
 		}
 	}
 

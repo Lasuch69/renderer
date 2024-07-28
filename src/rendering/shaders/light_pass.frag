@@ -9,5 +9,5 @@ layout(binding = 3, input_attachment_index = 3) uniform subpassInput fragDepth;
 layout(location = 0) out vec4 outFragColor;
 
 void main() {
-	outFragColor = subpassLoad(fragAlbedo);
+	outFragColor = subpassLoad(fragNormal);
 }

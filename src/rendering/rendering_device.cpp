@@ -6,7 +6,13 @@
 #include <vma/vk_mem_alloc.h>
 #include <vulkan/vulkan_core.h>
 
+#include "rendering/common/vk_allocated.h"
+#include "rendering/common/vk_attributes.h"
+
+#include "shaders/geometry_pass.gen.h"
 #include "shaders/light_pass.gen.h"
+
+#include "debug/test_cube.h"
 
 #include "rendering_device.h"
 
@@ -16,7 +22,8 @@
 	}
 
 VkResult pipelineCreate(VkDevice device, VkShaderModule vertexModule, VkShaderModule fragmentModule,
-		VkPipelineLayout pipelineLayout, VkRenderPass renderPass, uint32_t subpass, VkPipeline *pipeline) {
+		VkPipelineLayout pipelineLayout, VkRenderPass renderPass, uint32_t subpass,
+		VkPipelineVertexInputStateCreateInfo vertexInputStateInfo, VkPipeline *pipeline) {
 	VkPipelineShaderStageCreateInfo vertexStageInfo = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 		.stage = VK_SHADER_STAGE_VERTEX_BIT,
@@ -36,9 +43,9 @@ VkResult pipelineCreate(VkDevice device, VkShaderModule vertexModule, VkShaderMo
 		fragmentStageInfo,
 	};
 
-	VkPipelineVertexInputStateCreateInfo vertexInputStateInfo = {
-		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-	};
+	// VkPipelineVertexInputStateCreateInfo vertexInputStateInfo = {
+	//	.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+	// };
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateInfo = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
@@ -82,12 +89,22 @@ VkResult pipelineCreate(VkDevice device, VkShaderModule vertexModule, VkShaderMo
 						  VK_COLOR_COMPONENT_A_BIT,
 	};
 
+	VkPipelineColorBlendAttachmentState attachments[] = {
+		colorBlendAttachment,
+		colorBlendAttachment,
+		colorBlendAttachment,
+	};
+
+	uint32_t attachmentCount = 1;
+	if (subpass == GEOMETRY_PASS)
+		attachmentCount = 3;
+
 	VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 		.logicOpEnable = VK_FALSE,
 		.logicOp = VK_LOGIC_OP_COPY,
-		.attachmentCount = 1,
-		.pAttachments = &colorBlendAttachment,
+		.attachmentCount = attachmentCount,
+		.pAttachments = attachments,
 		.blendConstants = { 0.0f, 0.0f, 0.0f, 0.0f },
 	};
 
@@ -256,7 +273,7 @@ void RD::bufferCopy(VkBuffer srcBuffer, VkBuffer dstBuffer, size_t size) {
 	_endSingleTimeCommands(commandBuffer);
 }
 
-void RD::bufferUpdate(VkBuffer buffer, void *data, size_t size) {
+void RD::bufferUpdate(VkBuffer buffer, const void *data, size_t size) {
 	VmaAllocationInfo allocInfo;
 	AllocatedBuffer staging = bufferCreate(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &allocInfo);
 
@@ -484,6 +501,22 @@ void RD::draw() {
 	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_geometryPipeline);
+	vkCmdBindIndexBuffer(commandBuffer, m_testCubeIndexBuffer.handle, 0, VK_INDEX_TYPE_UINT32);
+
+	VkBuffer buffers[] = {
+		m_testCubeVertexBuffer.handle,
+		m_instanceBuffer.handle,
+	};
+
+	VkDeviceSize offsets[2] = { 0, 0 };
+	vkCmdBindVertexBuffers(commandBuffer, 0, 2, buffers, offsets);
+
+	CameraConstants camera;
+	vkCmdPushConstants(commandBuffer, m_geometryPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera), &camera);
+
+	vkCmdDrawIndexed(commandBuffer, m_testCubeIndexCount, m_instanceCount, 0, 0, 0);
+
 	vkCmdNextSubpass(commandBuffer, VK_SUBPASS_CONTENTS_INLINE);
 
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightPipeline);
@@ -610,6 +643,29 @@ void RD::windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
 				"Descriptor pool creation failed!");
 	}
 
+	// test cube
+
+	{
+		VkBufferUsageFlags indexUsage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		m_testCubeIndexBuffer = bufferCreate(sizeof(TEST_CUBE_INDICES), indexUsage);
+
+		VkBufferUsageFlags vertexUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		m_testCubeVertexBuffer = bufferCreate(sizeof(TEST_CUBE_VERTICES), vertexUsage);
+
+		bufferUpdate(m_testCubeIndexBuffer.handle, TEST_CUBE_INDICES, sizeof(TEST_CUBE_INDICES));
+		bufferUpdate(m_testCubeVertexBuffer.handle, TEST_CUBE_VERTICES, sizeof(TEST_CUBE_VERTICES));
+
+		m_testCubeIndexCount = sizeof(TEST_CUBE_INDICES) / sizeof(TEST_CUBE_INDICES[0]);
+
+		VkBufferUsageFlags instanceBufferUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		m_instanceBuffer = bufferCreate(sizeof(Instance) * 16, instanceBufferUsage);
+
+		Instance instances[16];
+		bufferUpdate(m_instanceBuffer.handle, instances, sizeof(instances));
+
+		m_instanceCount = 16;
+	}
+
 	// gbuffer
 
 	{
@@ -674,6 +730,55 @@ void RD::windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
 	}
 
 	{
+		VkPushConstantRange constantRange = {
+			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+			.size = sizeof(CameraConstants),
+		};
+
+		VkPipelineLayoutCreateInfo layoutInfo = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			.pushConstantRangeCount = 1,
+			.pPushConstantRanges = &constantRange,
+		};
+
+		CHECK_VK_RESULT(vkCreatePipelineLayout(m_context.device(), &layoutInfo, nullptr, &m_geometryPipelineLayout) ==
+								VK_SUCCESS,
+				"Geometry pipeline layout creation failed!");
+
+		GeometryPassShader shader;
+		shader.compile(m_context.device());
+
+		VkVertexInputBindingDescription bindingDescriptions[] = {
+			VERTEX_BINDING,
+			INSTANCE_BINDING,
+		};
+
+		const VkVertexInputAttributeDescription attributeDescriptions[] = {
+			VERTEX_ATTRIBUTES[0],
+			VERTEX_ATTRIBUTES[1],
+			VERTEX_ATTRIBUTES[2],
+			VERTEX_ATTRIBUTES[3],
+			INSTANCE_ATTRIBUTES[0],
+			INSTANCE_ATTRIBUTES[1],
+			INSTANCE_ATTRIBUTES[2],
+			INSTANCE_ATTRIBUTES[3],
+		};
+
+		VkPipelineVertexInputStateCreateInfo vertexInputStateInfo = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+			.vertexBindingDescriptionCount = 2,
+			.pVertexBindingDescriptions = bindingDescriptions,
+			.vertexAttributeDescriptionCount = 8,
+			.pVertexAttributeDescriptions = attributeDescriptions,
+		};
+
+		CHECK_VK_RESULT(pipelineCreate(m_context.device(), shader.vertexStage(), shader.fragmentStage(),
+								m_geometryPipelineLayout, m_context.renderPass(), GEOMETRY_PASS, vertexInputStateInfo,
+								&m_geometryPipeline) == VK_SUCCESS,
+				"Geometry pipeline creation failed!");
+	}
+
+	{
 		VkPipelineLayoutCreateInfo layoutInfo = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 			.setLayoutCount = 1,
@@ -687,9 +792,13 @@ void RD::windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
 		LightPassShader shader;
 		shader.compile(m_context.device());
 
+		VkPipelineVertexInputStateCreateInfo vertexInputStateInfo = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+		};
+
 		CHECK_VK_RESULT(
 				pipelineCreate(m_context.device(), shader.vertexStage(), shader.fragmentStage(), m_lightPipelineLayout,
-						m_context.renderPass(), LIGHT_PASS, &m_lightPipeline) == VK_SUCCESS,
+						m_context.renderPass(), LIGHT_PASS, vertexInputStateInfo, &m_lightPipeline) == VK_SUCCESS,
 				"Light pipeline creation failed!");
 	}
 

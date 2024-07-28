@@ -9,7 +9,7 @@ layout(location = 2) in vec3 fragBitangent;
 layout(location = 3) in vec3 fragNormal;
 layout(location = 4) in vec2 fragTexCoord;
 
-layout(location = 5) in flat uint instanceIndex;
+// layout(location = 5) in flat uint instanceIndex;
 
 layout(location = 0) out vec3 outFragAlbedo;
 layout(location = 1) out vec3 outFragNormal;
