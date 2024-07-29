@@ -1,21 +1,14 @@
 #ifndef MATH_PROJECTION_H
 #define MATH_PROJECTION_H
 
-typedef struct {
-	float x;
-	float y;
-	float z;
-} vec3;
+#include "types/mat4.h"
+#include "types/vec3.h"
 
-typedef struct {
-	float n[4][4];
-} mat4;
+namespace math {
 
-const vec3 CAMERA_FRONT = vec3{ 0.0, 0.0, -1.0 };
-const vec3 CAMERA_UP = vec3{ 0.0, 1.0, 0.0 };
+mat4 perspective(float aspect, float fovY, float zNear, float zFar);
+mat4 lookAt(const vec3 &eye, const vec3 &front, const vec3 &up);
 
-mat4 projectionMatrix(float aspect, float fovY, float zNear, float zFar);
-mat4 viewMatrix(const vec3 &eye, const vec3 &front);
-mat4 modelMatrix(const vec3 &position);
+}; // namespace math
 
 #endif // !MATH_PROJECTION_H

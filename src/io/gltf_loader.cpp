@@ -11,6 +11,8 @@
 #include "common/mesh.h"
 #include "common/vertex.h"
 
+#include "math/types/vec3.h"
+
 #include "gltf_loader.h"
 
 bool checkRequiredAttributes(const cgltf_attribute *attributes, uint32_t attributeCount) {
@@ -42,12 +44,8 @@ bool checkRequiredAttributes(const cgltf_attribute *attributes, uint32_t attribu
 void tangentsGenerate(const uint32_t *indices, uint32_t indexCount, Vertex *vertices, uint32_t vertexCount) {
 	assert(indexCount % 3 == 0);
 
-	typedef struct {
-		float data[3];
-	} vec3;
-
 	float *averages = (float *)calloc(vertexCount, sizeof(float));
-	vec3 *tangents = (vec3 *)calloc(vertexCount, sizeof(vec3));
+	math::vec3 *tangents = (math::vec3 *)calloc(vertexCount, sizeof(math::vec3));
 
 	for (size_t i = 0; i < indexCount; i += 3) {
 		const Vertex &v0 = vertices[indices[i + 0]];
@@ -74,25 +72,14 @@ void tangentsGenerate(const uint32_t *indices, uint32_t indexCount, Vertex *vert
 
 		float r = 1.0 / (texCoord0[0] * texCoord1[1] - texCoord0[1] * texCoord1[0]);
 
-		float tangent[3];
-		tangent[0] = (position0[0] * texCoord1[1] - position1[0] * texCoord0[1]) * r;
-		tangent[1] = (position0[1] * texCoord1[1] - position1[1] * texCoord0[1]) * r;
-		tangent[2] = (position0[2] * texCoord1[1] - position1[2] * texCoord0[1]) * r;
+		math::vec3 tangent;
+		tangent.x = (position0[0] * texCoord1[1] - position1[0] * texCoord0[1]) * r;
+		tangent.y = (position0[1] * texCoord1[1] - position1[1] * texCoord0[1]) * r;
+		tangent.z = (position0[2] * texCoord1[1] - position1[2] * texCoord0[1]) * r;
 
-		vec3 &tangent0 = tangents[indices[i + 0]];
-		tangent0.data[0] += tangent[0];
-		tangent0.data[1] += tangent[1];
-		tangent0.data[2] += tangent[2];
-
-		vec3 &tangent1 = tangents[indices[i + 1]];
-		tangent1.data[0] += tangent[0];
-		tangent1.data[1] += tangent[1];
-		tangent1.data[2] += tangent[2];
-
-		vec3 &tangent2 = tangents[indices[i + 2]];
-		tangent2.data[0] += tangent[0];
-		tangent2.data[1] += tangent[1];
-		tangent2.data[2] += tangent[2];
+		tangents[indices[i + 0]] += tangent;
+		tangents[indices[i + 1]] += tangent;
+		tangents[indices[i + 2]] += tangent;
 
 		averages[indices[i + 0]] += 1.0;
 		averages[indices[i + 1]] += 1.0;
@@ -101,9 +88,8 @@ void tangentsGenerate(const uint32_t *indices, uint32_t indexCount, Vertex *vert
 
 	for (uint32_t i = 0; i < vertexCount; i++) {
 		float denom = 1.0 / averages[i];
-		vertices[i].tangent[0] = tangents[i].data[0] * denom;
-		vertices[i].tangent[1] = tangents[i].data[1] * denom;
-		vertices[i].tangent[2] = tangents[i].data[2] * denom;
+		math::vec3 tangent = tangents[i] * denom;
+		memcpy(vertices[i].tangent, &tangent, sizeof(tangent));
 	}
 }
 
