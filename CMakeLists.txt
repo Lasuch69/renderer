@@ -8,16 +8,14 @@ find_package(Vulkan REQUIRED)
 find_package(SDL2 REQUIRED)
 
 # compile shaders
-execute_process(COMMAND python3 shader_gen.py)
+execute_process(COMMAND python3 ${PROJECT_SOURCE_DIR}/shader_gen.py)
 
 file(GLOB_RECURSE SOURCE src/*.cpp)
+set(THIRDPARTY thirdparty/cgltf/cgltf.c thirdparty/stb/stb_image.cpp thirdparty/vma/vk_mem_alloc.cpp)
 
-add_executable(app ${SOURCE}
-	thirdparty/cgltf/cgltf.c
-	thirdparty/stb/stb_image.cpp
-	thirdparty/vma/vk_mem_alloc.cpp
-)
+set_source_files_properties(${SOURCE} PROPERTIES COMPILE_FLAGS "-Wall -g")
+set_source_files_properties(${THIRDPARTY} PROPERTIES COMPILE_FLAGS "-O3")
 
+add_executable(app ${SOURCE} ${THIRDPARTY})
 target_include_directories(app PRIVATE src thirdparty)
-target_compile_options(app PRIVATE -Wall -g)
 target_link_libraries(app PRIVATE Vulkan::Vulkan SDL2::SDL2)

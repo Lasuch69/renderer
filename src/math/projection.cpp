@@ -1,71 +1,80 @@
 #include <cmath>
+#include <cstring>
 
 #include "projection.h"
 
-static vec3 cross(const vec3 &a, const vec3 &b) {
-	return {
-		(a.y * b.z) - (a.z * b.y),
-		(a.z * b.x) - (a.x * b.z),
-		(a.x * b.y) - (a.y * b.x),
-	};
-}
+using namespace math;
 
-static float dot(const vec3 &a, const vec3 &b) {
-	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
-}
+const mat4 OPENGL_TO_VULKAN_MATRIX = {
+	{ 1.0f, 0.0f, 0.0f, 0.0f },
+	{ 0.0f, -1.0f, 0.0f, 0.0f },
+	{ 0.0f, 0.0f, 0.5f, 0.0f },
+	{ 0.0f, 0.0f, 0.5f, 1.0f },
+};
 
-static vec3 normalize(const vec3 &v) {
-	float denom = 1.0 / std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-	return {
-		v.x * denom,
-		v.y * denom,
-		v.z * denom,
-	};
-}
+const mat4 REVERSE_Z_MATRIX = {
+	{ 1.0f, 0.0f, 0.0f, 0.0f },
+	{ 0.0f, 1.0f, 0.0f, 0.0f },
+	{ 0.0f, 0.0f, -1.0f, 0.0f },
+	{ 0.0f, 0.0f, 1.0f, 1.0f },
+};
 
-mat4 projectionMatrix(float aspect, float fovY, float zNear, float zFar) {
+mat4 math::perspective(float aspect, float fovY, float zNear, float zFar) {
 	float tanHalfFovY = std::tan(fovY / 2.0f);
 
-	mat4 m;
-	m.n[0][0] = 1.0f / (aspect * tanHalfFovY);
-	m.n[1][1] = 1.0f / tanHalfFovY;
-	m.n[2][2] = -(zFar + zNear) / (zFar - zNear);
-	m.n[2][3] = -(2.0f * zFar * zNear) / (zFar - zNear);
-	m.n[3][2] = -1.0f;
-	m.n[3][3] = 0.0f;
+	float data[4][4];
+	data[0][0] = 1.0f / (aspect * tanHalfFovY);
+	data[0][1] = 0.0f;
+	data[0][2] = 0.0f;
+	data[0][3] = 0.0f;
 
-	return m;
+	data[1][0] = 0.0f;
+	data[1][1] = 1.0f / tanHalfFovY;
+	data[1][2] = 0.0f;
+	data[1][3] = 0.0f;
+
+	data[2][0] = 0.0f;
+	data[2][1] = 0.0f;
+	data[2][2] = -(zFar + zNear) / (zFar - zNear);
+	data[2][3] = -1.0f;
+
+	data[3][0] = 0.0f;
+	data[3][1] = 0.0f;
+	data[3][2] = -(2.0f * zFar * zNear) / (zFar - zNear);
+	data[3][3] = 0.0f;
+
+	mat4 out;
+	memcpy(&out, data, sizeof(mat4));
+	return REVERSE_Z_MATRIX * OPENGL_TO_VULKAN_MATRIX * out;
 }
 
-mat4 viewMatrix(vec3 eye, vec3 front) {
-	vec3 f = normalize({ front.x - eye.x, front.y - eye.y, front.z - eye.z });
-	vec3 r = normalize(cross(CAMERA_UP, f));
+mat4 math::lookAt(const vec3 &eye, const vec3 &target, const vec3 &up) {
+	vec3 f = normalize(target - eye);
+	vec3 r = normalize(cross(up, f));
 	vec3 u = cross(f, r);
 
-	mat4 m;
-	m.n[0][0] = r.x;
-	m.n[0][1] = r.y;
-	m.n[0][2] = r.z;
-	m.n[0][3] = dot({ -r.x, -r.y, -r.z }, eye);
+	float data[4][4];
+	data[0][0] = -r.x;
+	data[0][1] = u.x;
+	data[0][2] = -f.x;
+	data[0][3] = 0.0;
 
-	m.n[1][0] = u.x;
-	m.n[1][1] = u.y;
-	m.n[1][2] = u.z;
-	m.n[1][3] = dot({ -u.x, -u.y, -u.z }, eye);
+	data[1][0] = r.y;
+	data[1][1] = u.y;
+	data[1][2] = -f.y;
+	data[1][3] = 0.0;
 
-	m.n[2][0] = -f.x;
-	m.n[2][1] = -f.y;
-	m.n[2][2] = -f.z;
-	m.n[2][3] = dot(f, eye);
+	data[2][0] = -r.z;
+	data[2][1] = u.z;
+	data[2][2] = -f.z;
+	data[2][3] = 0.0;
 
-	m.n[3][0] = 0.0;
-	m.n[3][1] = 0.0;
-	m.n[3][2] = 0.0;
-	m.n[3][3] = 1.0;
+	data[3][0] = -dot(r, eye);
+	data[3][1] = -dot(u, eye);
+	data[3][2] = dot(f, eye);
+	data[3][3] = 1.0;
 
-	return m;
-}
-
-mat4 modelMatrix(vec3 position) {
-	mat4 m;
+	mat4 out;
+	memcpy(&out, data, sizeof(mat4));
+	return out;
 }
