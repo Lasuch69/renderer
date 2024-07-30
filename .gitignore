@@ -19,6 +19,6 @@ _deps
 *.a
 
 # shaders
-*.gen.h
+*.u32
 
 app

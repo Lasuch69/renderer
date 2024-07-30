@@ -7,7 +7,6 @@
 #include <cgltf/cgltf.h>
 #include <stb/stb_image.h>
 
-#include "common/aabb.h"
 #include "common/mesh.h"
 #include "common/vertex.h"
 
@@ -130,7 +129,7 @@ Mesh meshLoad(const cgltf_mesh &mesh) {
 		uint32_t vertexCount = 0;
 		Vertex *vertices = nullptr;
 
-		AABB aabb = {};
+		// AABB aabb = {};
 
 		for (uint64_t attributeIndex = 0; attributeIndex < primitive.attributes_count; attributeIndex++) {
 			if (strcmp("POSITION", primitive.attributes[attributeIndex].name) != 0)
@@ -141,6 +140,7 @@ Mesh meshLoad(const cgltf_mesh &mesh) {
 			vertexCount = positionAccessor->count;
 			vertices = new Vertex[positionAccessor->count];
 
+			/*
 			// INFO: min and max is required in specification, probably should implement checks anyway.
 			// Component type should always be float (same as POSITION attribute).
 			const float *min = positionAccessor->min;
@@ -152,6 +152,7 @@ Mesh meshLoad(const cgltf_mesh &mesh) {
 			aabb.w = max[0] - min[0];
 			aabb.h = max[1] - min[1];
 			aabb.d = max[2] - min[2];
+			*/
 		}
 
 		for (uint64_t attributeIndex = 0; attributeIndex < primitive.attributes_count; attributeIndex++) {

@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -6,11 +7,11 @@
 #include <vma/vk_mem_alloc.h>
 #include <vulkan/vulkan_core.h>
 
+#include <SDL2/SDL_rwops.h>
+#include <SDL2/SDL_stdinc.h>
+
 #include "rendering/common/vk_allocated.h"
 #include "rendering/common/vk_attributes.h"
-
-#include "shaders/geometry_pass.gen.h"
-#include "shaders/light_pass.gen.h"
 
 #include "debug/test_cube.h"
 
@@ -21,7 +22,21 @@
 		printf("%s\n", msg);                                                                                           \
 	}
 
-VkResult pipelineCreate(VkDevice device, VkShaderModule vertexModule, VkShaderModule fragmentModule,
+static VkShaderModule moduleCreate(VkDevice device, const uint32_t *pCode, size_t codeSize) {
+	VkShaderModuleCreateInfo createInfo = {
+		.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+		.codeSize = codeSize,
+		.pCode = pCode,
+	};
+
+	VkShaderModule shaderModule;
+	CHECK_VK_RESULT(vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) == VK_SUCCESS,
+			"Shader module creation failed!");
+
+	return shaderModule;
+}
+
+static VkResult pipelineCreate(VkDevice device, VkShaderModule vertexModule, VkShaderModule fragmentModule,
 		VkPipelineLayout pipelineLayout, VkRenderPass renderPass, uint32_t subpass,
 		VkPipelineVertexInputStateCreateInfo vertexInputStateInfo, VkPipeline *pipeline) {
 	VkPipelineShaderStageCreateInfo vertexStageInfo = {
@@ -745,8 +760,17 @@ void RD::windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
 								VK_SUCCESS,
 				"Geometry pipeline layout creation failed!");
 
-		GeometryPassShader shader;
-		shader.compile(m_context.device());
+		size_t vertexSize;
+		uint32_t *vertexCode = (uint32_t *)SDL_LoadFile("shaders/geometry_pass.vert.u32", &vertexSize);
+
+		size_t fragmentSize;
+		uint32_t *fragmentCode = (uint32_t *)SDL_LoadFile("shaders/geometry_pass.frag.u32", &fragmentSize);
+
+		VkShaderModule vertexModule = moduleCreate(m_context.device(), vertexCode, vertexSize);
+		VkShaderModule fragmentModule = moduleCreate(m_context.device(), fragmentCode, fragmentSize);
+
+		SDL_free(vertexCode);
+		SDL_free(fragmentCode);
 
 		VkVertexInputBindingDescription bindingDescriptions[] = {
 			VERTEX_BINDING,
@@ -772,10 +796,13 @@ void RD::windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
 			.pVertexAttributeDescriptions = attributeDescriptions,
 		};
 
-		CHECK_VK_RESULT(pipelineCreate(m_context.device(), shader.vertexStage(), shader.fragmentStage(),
-								m_geometryPipelineLayout, m_context.renderPass(), GEOMETRY_PASS, vertexInputStateInfo,
-								&m_geometryPipeline) == VK_SUCCESS,
+		CHECK_VK_RESULT(
+				pipelineCreate(m_context.device(), vertexModule, fragmentModule, m_geometryPipelineLayout,
+						m_context.renderPass(), GEOMETRY_PASS, vertexInputStateInfo, &m_geometryPipeline) == VK_SUCCESS,
 				"Geometry pipeline creation failed!");
+
+		vkDestroyShaderModule(m_context.device(), vertexModule, nullptr);
+		vkDestroyShaderModule(m_context.device(), fragmentModule, nullptr);
 	}
 
 	{
@@ -789,17 +816,29 @@ void RD::windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
 				vkCreatePipelineLayout(m_context.device(), &layoutInfo, nullptr, &m_lightPipelineLayout) == VK_SUCCESS,
 				"Light pipeline layout creation failed!");
 
-		LightPassShader shader;
-		shader.compile(m_context.device());
+		size_t vertexSize;
+		uint32_t *vertexCode = (uint32_t *)SDL_LoadFile("shaders/light_pass.vert.u32", &vertexSize);
+
+		size_t fragmentSize;
+		uint32_t *fragmentCode = (uint32_t *)SDL_LoadFile("shaders/light_pass.frag.u32", &fragmentSize);
+
+		VkShaderModule vertexModule = moduleCreate(m_context.device(), vertexCode, vertexSize);
+		VkShaderModule fragmentModule = moduleCreate(m_context.device(), fragmentCode, fragmentSize);
+
+		SDL_free(vertexCode);
+		SDL_free(fragmentCode);
 
 		VkPipelineVertexInputStateCreateInfo vertexInputStateInfo = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 		};
 
 		CHECK_VK_RESULT(
-				pipelineCreate(m_context.device(), shader.vertexStage(), shader.fragmentStage(), m_lightPipelineLayout,
+				pipelineCreate(m_context.device(), vertexModule, fragmentModule, m_lightPipelineLayout,
 						m_context.renderPass(), LIGHT_PASS, vertexInputStateInfo, &m_lightPipeline) == VK_SUCCESS,
 				"Light pipeline creation failed!");
+
+		vkDestroyShaderModule(m_context.device(), vertexModule, nullptr);
+		vkDestroyShaderModule(m_context.device(), fragmentModule, nullptr);
 	}
 
 	m_initialized = true;
