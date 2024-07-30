@@ -2,8 +2,17 @@
 
 import os
 import subprocess
+import sys
 
-SHADER_DIR = 'src/rendering/shaders'
+if len(sys.argv) < 2:
+    print("Shader directory required but not supplied!")
+    quit(-1)
+
+SHADER_DIR = sys.argv[1]
+
+if not os.path.exists(SHADER_DIR):
+    print(f"\"{SHADER_DIR}\" is not valid shader directory path!")
+    quit(-1)
 
 
 class Shader:

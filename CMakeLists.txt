@@ -8,7 +8,7 @@ find_package(Vulkan REQUIRED)
 find_package(SDL2 REQUIRED)
 
 # compile shaders
-execute_process(COMMAND python3 ${PROJECT_SOURCE_DIR}/shader_gen.py)
+execute_process(COMMAND python3 ${PROJECT_SOURCE_DIR}/shader_gen.py "${PROJECT_SOURCE_DIR}/src/rendering/shaders")
 
 file(GLOB_RECURSE SOURCE src/*.cpp)
 set(THIRDPARTY thirdparty/cgltf/cgltf.c thirdparty/stb/stb_image.cpp thirdparty/vma/vk_mem_alloc.cpp)
