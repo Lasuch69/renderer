@@ -3,12 +3,21 @@
 #include <cstring>
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_stdinc.h>
 #include <SDL2/SDL_vulkan.h>
+
+#include <io/gltf_loader.h>
+#include <io/scene.h>
 
 #include "rendering/rendering_server.h"
 
 const int WIDTH = 800;
 const int HEIGHT = 600;
+
+static float _abs(float x) {
+	uint32_t n = (*(uint32_t *)&x) & 0x7fffffff;
+	return *(float *)&n;
+}
 
 int main(int argc, char *argv[]) {
 	bool useWayland = false;
@@ -27,6 +36,9 @@ int main(int argc, char *argv[]) {
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "%s", SDL_GetError());
 		return EXIT_FAILURE;
 	}
+
+	float x = -69.0f;
+	printf("Value: %f, abs: %f\n", x, _abs(x));
 
 	uint32_t flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN;
 	SDL_Window *window = SDL_CreateWindow("App", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, flags);
@@ -62,6 +74,16 @@ int main(int argc, char *argv[]) {
 				int width, height;
 				SDL_Vulkan_GetDrawableSize(window, &width, &height);
 				RS::singleton().windowResize(width, height);
+			}
+
+			if (event.type == SDL_DROPFILE) {
+				char *file = event.drop.file;
+				Scene *scene = GLTFLoader::loadFile(file);
+
+				if (scene != nullptr)
+					free(scene);
+
+				SDL_free(file);
 			}
 		}
 

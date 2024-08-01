@@ -1,6 +1,7 @@
 #ifndef MESH_H
 #define MESH_H
 
+#include <cstddef>
 #include <cstdint>
 
 #include "aabb.h"
@@ -18,7 +19,7 @@ typedef struct {
 
 typedef struct {
 	AABB aabb;
-	uint32_t materialIndex;
+	size_t materialIndex;
 
 	IndexArray indices;
 	VertexArray vertices;

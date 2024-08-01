@@ -1,5 +1,7 @@
 #include <cmath>
-#include <cstring>
+
+#include "types/mat4.h"
+#include "types/vec3.h"
 
 #include "projection.h"
 
@@ -22,30 +24,20 @@ const mat4 REVERSE_Z_MATRIX = {
 mat4 math::perspective(float aspect, float fovY, float zNear, float zFar) {
 	float tanHalfFovY = std::tan(fovY / 2.0f);
 
-	float data[4][4];
-	data[0][0] = 1.0f / (aspect * tanHalfFovY);
-	data[0][1] = 0.0f;
-	data[0][2] = 0.0f;
-	data[0][3] = 0.0f;
+	float x = 1.0f / (aspect * tanHalfFovY);
+	float y = 1.0f / tanHalfFovY;
 
-	data[1][0] = 0.0f;
-	data[1][1] = 1.0f / tanHalfFovY;
-	data[1][2] = 0.0f;
-	data[1][3] = 0.0f;
+	float f = -(zFar + zNear) / (zFar - zNear);
+	float n = -(2.0f * zFar * zNear) / (zFar - zNear);
 
-	data[2][0] = 0.0f;
-	data[2][1] = 0.0f;
-	data[2][2] = -(zFar + zNear) / (zFar - zNear);
-	data[2][3] = -1.0f;
+	mat4 projection = {
+		{ x, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, y, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, f, 0.0f },
+		{ 0.0f, 0.0f, n, 0.0f },
+	};
 
-	data[3][0] = 0.0f;
-	data[3][1] = 0.0f;
-	data[3][2] = -(2.0f * zFar * zNear) / (zFar - zNear);
-	data[3][3] = 0.0f;
-
-	mat4 out;
-	memcpy(&out, data, sizeof(mat4));
-	return REVERSE_Z_MATRIX * OPENGL_TO_VULKAN_MATRIX * out;
+	return REVERSE_Z_MATRIX * OPENGL_TO_VULKAN_MATRIX * projection;
 }
 
 mat4 math::lookAt(const vec3 &eye, const vec3 &target, const vec3 &up) {
@@ -53,28 +45,12 @@ mat4 math::lookAt(const vec3 &eye, const vec3 &target, const vec3 &up) {
 	vec3 r = normalize(cross(up, f));
 	vec3 u = cross(f, r);
 
-	float data[4][4];
-	data[0][0] = -r.x;
-	data[0][1] = u.x;
-	data[0][2] = -f.x;
-	data[0][3] = 0.0;
+	const vec3 p = { -dot(r, eye), -dot(u, eye), dot(f, eye) };
 
-	data[1][0] = r.y;
-	data[1][1] = u.y;
-	data[1][2] = -f.y;
-	data[1][3] = 0.0;
-
-	data[2][0] = -r.z;
-	data[2][1] = u.z;
-	data[2][2] = -f.z;
-	data[2][3] = 0.0;
-
-	data[3][0] = -dot(r, eye);
-	data[3][1] = -dot(u, eye);
-	data[3][2] = dot(f, eye);
-	data[3][3] = 1.0;
-
-	mat4 out;
-	memcpy(&out, data, sizeof(mat4));
-	return out;
+	return {
+		{ -r.x, u.x, -f.x, 0.0f },
+		{ r.y, u.y, f.y, 0.0f },
+		{ -r.z, u.z, -f.z, 0.0f },
+		{ p.x, p.y, p.z, 1.0f },
+	};
 }

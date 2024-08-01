@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -7,6 +8,8 @@
 #include <cgltf/cgltf.h>
 #include <stb/stb_image.h>
 
+#include <io/scene.h>
+#include <io/types/aabb.h>
 #include <io/types/mesh.h>
 #include <io/types/vertex.h>
 
@@ -15,7 +18,17 @@
 
 #include "gltf_loader.h"
 
-bool GLTFLoader::_checkAttributes(const cgltf_attribute *attributes, uint32_t attributeCount) {
+static math::mat4 transformExtract(const cgltf_node &node) {
+	if (node.has_matrix) {
+		math::mat4 matrix;
+		memcpy(&matrix, node.matrix, sizeof(float) * 16);
+		return matrix;
+	}
+
+	return math::mat4(1.0f);
+}
+
+static bool primitiveCheckRequiredAttributes(const cgltf_primitive &primitive) {
 	const char *REQUIRED_ATTRIBUTES[] = {
 		"POSITION",
 		"NORMAL",
@@ -24,8 +37,8 @@ bool GLTFLoader::_checkAttributes(const cgltf_attribute *attributes, uint32_t at
 
 	for (const char *requiredAttribute : REQUIRED_ATTRIBUTES) {
 		bool isRequiredAttributeFound = false;
-		for (uint32_t i = 0; i < attributeCount; i++) {
-			if (strcmp(requiredAttribute, attributes[i].name) != 0)
+		for (size_t i = 0; i < primitive.attributes_count; i++) {
+			if (strcmp(requiredAttribute, primitive.attributes[i].name) != 0)
 				continue;
 
 			isRequiredAttributeFound = true;
@@ -41,23 +54,115 @@ bool GLTFLoader::_checkAttributes(const cgltf_attribute *attributes, uint32_t at
 	return true;
 }
 
-math::mat4 GLTFLoader::_extractTransform(const cgltf_node &node) {
-	if (node.has_matrix) {
-		math::mat4 matrix;
-		memcpy(&matrix, node.matrix, sizeof(float) * 16);
-		return matrix;
+static AABB primitiveBounds(const cgltf_primitive &primitive) {
+	for (size_t attributeIndex = 0; attributeIndex < primitive.attributes_count; attributeIndex++) {
+		if (strcmp("POSITION", primitive.attributes[attributeIndex].name) != 0)
+			continue;
+
+		const cgltf_accessor *accessor = primitive.attributes[attributeIndex].data;
+
+		// INFO: required in specification, vector 3 (float);
+		const float *min = accessor->min;
+		const float *max = accessor->max;
+
+		return AABB{
+			min[0],
+			min[1],
+			min[2],
+			max[0] - min[0],
+			max[1] - min[1],
+			max[2] - min[2],
+		};
 	}
 
-	return math::mat4(1.0f);
+	// something went wrong :)
+	return AABB();
 }
 
-void GLTFLoader::_tangentsGenerate(const IndexArray &indices, VertexArray &vertices) {
-	assert(indices.count % 3 == 0);
+static IndexArray primitiveIndices(const cgltf_primitive &primitive) {
+	const cgltf_buffer_view *bufferView = primitive.indices->buffer_view;
+
+	const size_t begin = bufferView->offset;
+	const uint8_t *buffer = reinterpret_cast<uint8_t *>(bufferView->buffer->data);
+	const size_t componentSize = cgltf_component_size(primitive.indices->component_type);
+
+	uint8_t *data = (uint8_t *)calloc(primitive.indices->count, sizeof(uint32_t));
+
+	for (size_t i = 0; i < primitive.indices->count; i++) {
+		memcpy(&data[i * sizeof(uint32_t)], &buffer[begin + (i * componentSize)], componentSize);
+	}
+
+	return { reinterpret_cast<uint32_t *>(data), (uint32_t)primitive.indices->count };
+}
+
+static VertexArray primitiveVertices(const cgltf_primitive &primitive) {
+	Vertex *vertices = nullptr;
+	uint32_t vertexCount = 0;
+
+	for (size_t i = 0; i < primitive.attributes_count; i++) {
+		if (strcmp("POSITION", primitive.attributes[i].name) != 0)
+			continue;
+
+		const cgltf_accessor *accessor = primitive.attributes[i].data;
+
+		vertices = new Vertex[accessor->count];
+		vertexCount = accessor->count;
+	}
+
+	for (size_t i = 0; i < primitive.attributes_count; i++) {
+		const cgltf_attribute &attribute = primitive.attributes[i];
+
+		const cgltf_accessor *accessor = attribute.data;
+		const cgltf_buffer_view *bufferView = accessor->buffer_view;
+
+		if (bufferView->buffer->data == nullptr)
+			continue;
+
+		const size_t begin = bufferView->offset;
+		const size_t size = bufferView->size;
+
+		const uint8_t *buffer = reinterpret_cast<uint8_t *>(bufferView->buffer->data);
+
+		uint32_t idx = 0;
+		switch (attribute.type) {
+			case cgltf_attribute_type_position:
+				for (size_t offset = begin; offset < begin + size; offset += sizeof(float) * 3) {
+					memcpy(vertices[idx].position, &buffer[offset], sizeof(float) * 3);
+					idx++;
+				}
+
+				break;
+			case cgltf_attribute_type_normal:
+				for (size_t offset = begin; offset < begin + size; offset += sizeof(float) * 3) {
+					memcpy(vertices[idx].normal, &buffer[offset], sizeof(float) * 3);
+					idx++;
+				}
+
+				break;
+			case cgltf_attribute_type_texcoord:
+				// TODO: Handle other component types from specification
+				for (size_t offset = begin; offset < begin + size; offset += sizeof(float) * 2) {
+					memcpy(vertices[idx].texCoord, &buffer[offset], sizeof(float) * 2);
+					idx++;
+				}
+
+				break;
+			default:
+				continue;
+		}
+	}
+
+	return { vertices, vertexCount };
+}
+
+static bool tangentsCalculate(const IndexArray &indices, VertexArray &vertices) {
+	if (indices.count % 3 != 0)
+		return false;
 
 	math::vec3 *tangents = (math::vec3 *)calloc(vertices.count, sizeof(math::vec3));
 	float *averages = (float *)calloc(vertices.count, sizeof(float));
 
-	for (size_t i = 0; i < indices.count; i += 3) {
+	for (uint32_t i = 0; i < indices.count; i += 3) {
 		const Vertex &v0 = vertices.data[indices.data[i + 0]];
 		const Vertex &v1 = vertices.data[indices.data[i + 1]];
 		const Vertex &v2 = vertices.data[indices.data[i + 2]];
@@ -94,143 +199,86 @@ void GLTFLoader::_tangentsGenerate(const IndexArray &indices, VertexArray &verti
 
 	for (uint32_t i = 0; i < vertices.count; i++) {
 		float denom = 1.0 / averages[i];
-		math::vec3 tangent = tangents[i] * denom;
-		memcpy(vertices.data[i].tangent, &tangent, sizeof(tangent));
-	}
-}
-
-Mesh GLTFLoader::_meshLoad(const cgltf_mesh &mesh) {
-	Mesh _mesh = {};
-	_mesh.primitiveCount = mesh.primitives_count;
-	_mesh.primitives = (Primitive *)calloc(mesh.primitives_count, sizeof(Primitive));
-
-	for (uint64_t i = 0; i < mesh.primitives_count; i++) {
-		const cgltf_primitive &primitive = mesh.primitives[i];
-
-		if (!_checkAttributes(primitive.attributes, primitive.attributes_count)) {
-			fprintf(stderr, "Mesh: %s, primitive: %ld is missing required attributes!\n", mesh.name, i);
-			continue;
-		}
-
-		IndexArray indices = {};
-		indices.data = new uint32_t[primitive.indices->count];
-		indices.count = primitive.indices->count;
-
-		uint64_t offset = primitive.indices->buffer_view->offset;
-		uint8_t *buffer = reinterpret_cast<uint8_t *>(primitive.indices->buffer_view->buffer->data);
-
-		switch (primitive.indices->component_type) {
-			case cgltf_component_type_r_16u:
-				for (uint32_t idx = 0; idx < indices.count; idx++) {
-					uint16_t element;
-					memcpy(&element, &buffer[offset + (idx * sizeof(uint16_t))], sizeof(uint16_t));
-					indices.data[idx] = element;
-				}
-				break;
-			case cgltf_component_type_r_32u:
-				memcpy(indices.data, &buffer[offset], indices.count * sizeof(uint32_t));
-				break;
-			default:
-				break;
-		}
-
-		VertexArray vertices = {};
-		vertices.data = nullptr;
-		vertices.count = 0;
-
-		AABB aabb = {};
-
-		for (uint64_t attributeIndex = 0; attributeIndex < primitive.attributes_count; attributeIndex++) {
-			if (strcmp("POSITION", primitive.attributes[attributeIndex].name) != 0)
-				continue;
-
-			const cgltf_accessor *positionAccessor = primitive.attributes[attributeIndex].data;
-
-			vertices.data = new Vertex[positionAccessor->count];
-			vertices.count = positionAccessor->count;
-
-			// INFO: required in specification, probably check if valid anyway.
-			// Always float (same as POSITION attribute).
-			const float *min = positionAccessor->min;
-			const float *max = positionAccessor->max;
-
-			aabb.x = min[0];
-			aabb.y = min[1];
-			aabb.z = min[2];
-
-			aabb.w = max[0] - min[0];
-			aabb.h = max[1] - min[1];
-			aabb.d = max[2] - min[2];
-		}
-
-		for (uint64_t attributeIndex = 0; attributeIndex < primitive.attributes_count; attributeIndex++) {
-			const cgltf_attribute *attribute = &primitive.attributes[attributeIndex];
-
-			if (attribute == nullptr)
-				continue;
-
-			const cgltf_accessor *accessor = attribute->data;
-			const cgltf_buffer_view *bufferView = accessor->buffer_view;
-
-			if (bufferView->buffer->data == nullptr)
-				continue;
-
-			const uint64_t begin = bufferView->offset;
-			const uint64_t size = bufferView->size;
-
-			const uint8_t *buffer = reinterpret_cast<uint8_t *>(bufferView->buffer->data);
-
-			uint32_t vertexIdx = 0;
-			switch (primitive.attributes[attributeIndex].type) {
-				case cgltf_attribute_type_position:
-					for (uint64_t offset = begin; offset < begin + size; offset += sizeof(float) * 3) {
-						memcpy(vertices.data[vertexIdx].position, &buffer[offset], sizeof(float) * 3);
-						vertexIdx++;
-					}
-
-					break;
-				case cgltf_attribute_type_normal:
-					for (uint64_t offset = begin; offset < begin + size; offset += sizeof(float) * 3) {
-						memcpy(vertices.data[vertexIdx].normal, &buffer[offset], sizeof(float) * 3);
-						vertexIdx++;
-					}
-
-					break;
-				case cgltf_attribute_type_texcoord:
-					// TODO: Handle other component types from specification
-					for (uint64_t offset = begin; offset < begin + size; offset += sizeof(float) * 2) {
-						memcpy(vertices.data[vertexIdx].texCoord, &buffer[offset], sizeof(float) * 2);
-						vertexIdx++;
-					}
-
-					break;
-				default:
-					continue;
-			}
-		}
-
-		_tangentsGenerate(indices, vertices);
-
-		_mesh.primitives[i].aabb = aabb;
-		_mesh.primitives[i].indices = indices;
-		_mesh.primitives[i].vertices = vertices;
+		vertices.data[i].tangent[0] = tangents[i].x * denom;
+		vertices.data[i].tangent[1] = tangents[i].y * denom;
+		vertices.data[i].tangent[2] = tangents[i].z * denom;
 	}
 
-	return _mesh;
+	return true;
 }
 
-void GLTFLoader::loadFile(const char *path) {
+Scene *GLTFLoader::loadFile(const char *path) {
 	cgltf_options options = {};
 	cgltf_data *data = NULL;
 
 	if (cgltf_parse_file(&options, path, &data) != cgltf_result_success)
-		return;
+		return nullptr;
 
 	if (cgltf_load_buffers(&options, data, path) != cgltf_result_success)
-		return;
+		return nullptr;
 
-	for (uint64_t i = 0; i < data->meshes_count; i++)
-		_meshLoad(data->meshes[i]);
+	if (cgltf_validate(data) != cgltf_result_success)
+		return nullptr;
+
+	Node *nodes = new Node[data->nodes_count];
+	Mesh *meshes = new Mesh[data->meshes_count];
+
+	for (size_t nodeIdx = 0; nodeIdx < data->nodes_count; nodeIdx++) {
+		const cgltf_node &_node = data->nodes[nodeIdx];
+
+		if (_node.mesh != nullptr) {
+			nodes[nodeIdx].hasMesh = true;
+			nodes[nodeIdx].meshIndex = cgltf_mesh_index(data, _node.mesh);
+		} else {
+			nodes[nodeIdx].hasMesh = false;
+			nodes[nodeIdx].meshIndex = 0;
+		}
+
+		nodes[nodeIdx].transform = transformExtract(_node);
+	}
+
+	for (size_t meshIdx = 0; meshIdx < data->meshes_count; meshIdx++) {
+		const cgltf_mesh &_mesh = data->meshes[meshIdx];
+
+		meshes[meshIdx].primitives = new Primitive[_mesh.primitives_count];
+		meshes[meshIdx].primitiveCount = _mesh.primitives_count;
+
+		for (size_t primitiveIdx = 0; primitiveIdx < _mesh.primitives_count; primitiveIdx++) {
+			const cgltf_primitive &_primitive = _mesh.primitives[primitiveIdx];
+
+			if (!primitiveCheckRequiredAttributes(_primitive)) {
+				fprintf(stderr, "Mesh: %s, primitive id: %ld is missing required attributes!\n", _mesh.name,
+						primitiveIdx);
+
+				meshes[meshIdx].primitives[primitiveIdx] = {};
+				continue;
+			}
+
+			AABB aabb = primitiveBounds(_primitive);
+			size_t materialIndex = cgltf_material_index(data, _primitive.material);
+			IndexArray indices = primitiveIndices(_primitive);
+			VertexArray vertices = primitiveVertices(_primitive);
+
+			if (!tangentsCalculate(indices, vertices)) {
+				fprintf(stderr, "Mesh: %s, primitive id: %ld failed to calculate tangents!\n", _mesh.name,
+						primitiveIdx);
+
+				free(indices.data);
+				free(vertices.data);
+
+				meshes[meshIdx].primitives[primitiveIdx] = {};
+				continue;
+			}
+
+			meshes[meshIdx].primitives[primitiveIdx] = {
+				aabb,
+				materialIndex,
+				indices,
+				vertices,
+			};
+		}
+	}
 
 	cgltf_free(data);
+	return new Scene(nodes, data->nodes_count, meshes, data->meshes_count);
 }
