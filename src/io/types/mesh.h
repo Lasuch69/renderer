@@ -4,8 +4,12 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "aabb.h"
 #include "vertex.h"
+
+typedef struct {
+	float x, y, z;
+	float w, h, d;
+} AABB;
 
 typedef struct {
 	uint32_t *data;
@@ -19,10 +23,10 @@ typedef struct {
 
 typedef struct {
 	AABB aabb;
-	size_t materialIndex;
-
 	IndexArray indices;
 	VertexArray vertices;
+
+	size_t materialIndex;
 } Primitive;
 
 typedef struct {

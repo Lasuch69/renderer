@@ -46,21 +46,61 @@ private:
 	void _swapchainDestroy();
 
 public:
-	VkInstance instance() const;
-	VkSurfaceKHR surface() const;
-	VkPhysicalDevice physicalDevice() const;
-	VkPhysicalDeviceMemoryProperties memoryProperties() const;
-	VkDevice device() const;
-	VkQueue graphicsQueue() const;
-	VkQueue presentQueue() const;
-	uint32_t graphicsQueueFamily() const;
-	VkSwapchainKHR swapchain() const;
-	VkExtent2D swapchainExtent() const;
-	VkRenderPass renderPass() const;
-	VkFramebuffer framebuffer(uint32_t imageIndex) const;
-	VkCommandPool commandPool() const;
+	inline VkInstance instance() const {
+		return m_instance;
+	}
 
-	bool isInitialized() const;
+	inline VkSurfaceKHR surface() const {
+		return m_surface;
+	}
+
+	inline VkPhysicalDevice physicalDevice() const {
+		return m_physicalDevice;
+	}
+
+	inline VkPhysicalDeviceMemoryProperties memoryProperties() const {
+		return m_memoryProperties;
+	}
+
+	inline VkDevice device() const {
+		return m_device;
+	}
+
+	inline VkQueue graphicsQueue() const {
+		return m_graphicsQueue;
+	}
+
+	inline VkQueue presentQueue() const {
+		return m_presentQueue;
+	}
+
+	inline uint32_t graphicsQueueFamily() const {
+		return m_graphicsQueueFamily;
+	}
+
+	inline VkSwapchainKHR swapchain() const {
+		return m_swapchain;
+	}
+
+	inline VkExtent2D swapchainExtent() const {
+		return m_swapchainExtent;
+	}
+
+	inline VkRenderPass renderPass() const {
+		return m_renderPass;
+	}
+
+	inline VkFramebuffer framebuffer(uint32_t imageIndex) const {
+		return m_swapchainImages[imageIndex].framebuffer;
+	}
+
+	inline VkCommandPool commandPool() const {
+		return m_commandPool;
+	}
+
+	inline bool initialized() const {
+		return m_initialized;
+	}
 
 	void create(const char *const *extensions, uint32_t extensionCount, bool validation);
 	void destroy();

@@ -8,6 +8,11 @@ layout(location = 4) in vec2 inTexCoord;
 
 layout(location = 0) out vec4 outFragColor;
 
+layout(set = 0, binding = 0) uniform SceneUBO {
+	vec3 CAMERA_POSITION;
+	float TIME;
+};
+
 const float PI = 3.14159265359;
 
 // layout(early_fragment_tests) in;
@@ -77,7 +82,7 @@ void main() {
 	float metallic = 0.0;
 
 	vec3 N = inNormal;
-	vec3 V = normalize(vec3(1.0));
+	vec3 V = normalize(CAMERA_POSITION - inPosition);
 	vec3 L = normalize(vec3(1.0));
 
 	vec3 radiance = vec3(1.0);

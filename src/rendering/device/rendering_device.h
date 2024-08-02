@@ -4,10 +4,14 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "common/vk_allocated.h"
+#include "types/allocated.h"
+#include "types/resource_owner.h"
+
 #include "vulkan_context.h"
 
 const uint32_t FRAMES_IN_FLIGHT = 2;
+
+typedef size_t BufferID;
 
 typedef struct VmaAllocator_T *VmaAllocator;
 typedef struct VmaAllocationInfo VmaAllocationInfo;
@@ -42,31 +46,33 @@ private:
 	VkDescriptorPool m_descriptorPool;
 	VkDescriptorSetLayout m_uniformSetLayout;
 
+	ResourceOwner<AllocatedBuffer> m_bufferOwner;
+
 	VkCommandBuffer _beginSingleTimeCommands();
 	void _endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
+	AllocatedBuffer _bufferCreate(size_t size, VkBufferUsageFlags usage, VmaAllocationInfo *allocInfo = nullptr);
+	void _bufferCopy(VkBuffer src, VkBuffer dst, size_t size);
+	void _bufferUpload(VkBuffer buffer, const void *data, size_t size);
+	void _bufferDestroy(AllocatedBuffer &buffer);
+
 public:
-	AllocatedBuffer bufferCreate(size_t size, VkBufferUsageFlags usage, VmaAllocationInfo *allocInfo);
-	void bufferCopy(VkBuffer srcBuffer, VkBuffer dstBuffer, size_t size);
-	void bufferUpdate(VkBuffer buffer, void *data, size_t size);
-	void bufferDestroy(AllocatedBuffer buffer);
-
-	AllocatedImage imageCreate(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage);
-	void imageUpdate(VkImage image, uint32_t width, uint32_t height, VkFormat format, void *data, size_t size);
-	void imageDestroy(AllocatedImage image);
-
-	VkImageView imageViewCreate(VkImage image, VkFormat format);
-	void imageViewDestroy(VkImageView imageView);
-
-	VkInstance vulkanInstance();
+	BufferID bufferCreate(const void *data, size_t size);
+	void bufferCopy(BufferID src, BufferID dst, size_t size);
+	void bufferUpload(BufferID buffer, size_t offset, const void *data, size_t size);
+	void bufferDestroy(BufferID buffer);
 
 	void draw();
 
 	void windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height);
 	void windowResize(uint32_t width, uint32_t height);
 
-	void vulkanCreate(const char *const *extensions, uint32_t extensionCount, bool validation);
-	void vulkanDestroy();
+	void vkCreate(const char *const *extensions, uint32_t extensionCount, bool validation);
+	void vkDestroy();
+
+	inline VkInstance vkInstance() const {
+		return m_context.instance();
+	}
 };
 
 typedef RenderingDevice RD;

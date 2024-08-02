@@ -11,7 +11,7 @@ layout(location = 2) out vec3 outBitangent;
 layout(location = 3) out vec3 outNormal;
 layout(location = 4) out vec2 outTexCoord;
 
-layout(push_constant) uniform MaterialConstants {
+layout(push_constant) uniform ObjectConstants {
 	mat4 PROJECTION_VIEW_MATRIX;
 	mat4 MODEL_MATRIX;
 };

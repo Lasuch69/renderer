@@ -9,7 +9,6 @@
 #include <stb/stb_image.h>
 
 #include <io/scene.h>
-#include <io/types/aabb.h>
 #include <io/types/mesh.h>
 #include <io/types/vertex.h>
 
@@ -255,7 +254,6 @@ Scene *GLTFLoader::loadFile(const char *path) {
 			}
 
 			AABB aabb = primitiveBounds(_primitive);
-			size_t materialIndex = cgltf_material_index(data, _primitive.material);
 			IndexArray indices = primitiveIndices(_primitive);
 			VertexArray vertices = primitiveVertices(_primitive);
 
@@ -272,9 +270,9 @@ Scene *GLTFLoader::loadFile(const char *path) {
 
 			meshes[meshIdx].primitives[primitiveIdx] = {
 				aabb,
-				materialIndex,
 				indices,
 				vertices,
+				cgltf_material_index(data, _primitive.material),
 			};
 		}
 	}

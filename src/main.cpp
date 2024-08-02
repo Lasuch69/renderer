@@ -9,24 +9,24 @@
 #include <io/gltf_loader.h>
 #include <io/scene.h>
 
-#include "rendering/rendering_server.h"
+#include "rendering/renderer.h"
 
 const int WIDTH = 800;
 const int HEIGHT = 600;
 
-static float _abs(float x) {
-	uint32_t n = (*(uint32_t *)&x) & 0x7fffffff;
-	return *(float *)&n;
-}
-
 int main(int argc, char *argv[]) {
-	bool useWayland = false;
+	bool wayland = false;
+	bool validate = false;
+
 	for (int i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "--wayland") == 0)
-			useWayland = true;
+			wayland = true;
+
+		if (strcmp(argv[i], "--validate") == 0)
+			validate = true;
 	}
 
-	if (useWayland) {
+	if (wayland) {
 		SDL_SetHint(SDL_HINT_VIDEODRIVER, "wayland");
 	} else {
 		SDL_SetHint(SDL_HINT_VIDEODRIVER, "x11");
@@ -36,9 +36,6 @@ int main(int argc, char *argv[]) {
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "%s", SDL_GetError());
 		return EXIT_FAILURE;
 	}
-
-	float x = -69.0f;
-	printf("Value: %f, abs: %f\n", x, _abs(x));
 
 	uint32_t flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN;
 	SDL_Window *window = SDL_CreateWindow("App", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, flags);
@@ -56,12 +53,12 @@ int main(int argc, char *argv[]) {
 	const char **extensions = (const char **)malloc(extensionCount * sizeof(const char *));
 	SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, extensions);
 
-	RS::singleton().initialize(argc, argv, extensions, extensionCount);
-	VkInstance instance = RS::singleton().vulkanInstance();
+	Renderer::singleton().vkCreate(extensions, extensionCount, validate);
+	VkInstance instance = Renderer::singleton().vkInstance();
 
 	VkSurfaceKHR surface;
 	SDL_Vulkan_CreateSurface(window, instance, &surface);
-	RS::singleton().windowCreate(surface, WIDTH, HEIGHT);
+	Renderer::singleton().windowCreate(surface, WIDTH, HEIGHT);
 
 	bool quit = false;
 	while (!quit) {
@@ -73,7 +70,7 @@ int main(int argc, char *argv[]) {
 			if (event.type == SDL_WINDOWEVENT_RESIZED) {
 				int width, height;
 				SDL_Vulkan_GetDrawableSize(window, &width, &height);
-				RS::singleton().windowResize(width, height);
+				Renderer::singleton().windowResize(width, height);
 			}
 
 			if (event.type == SDL_DROPFILE) {
@@ -87,7 +84,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		RS::singleton().draw();
+		Renderer::singleton().draw();
 	}
 
 	SDL_DestroyWindow(window);

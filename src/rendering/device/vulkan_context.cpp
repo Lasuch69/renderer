@@ -534,62 +534,6 @@ void VulkanContext::_swapchainDestroy() {
 	vkDestroyRenderPass(m_device, m_renderPass, nullptr);
 }
 
-VkInstance VulkanContext::instance() const {
-	return m_instance;
-}
-
-VkSurfaceKHR VulkanContext::surface() const {
-	return m_surface;
-}
-
-VkPhysicalDevice VulkanContext::physicalDevice() const {
-	return m_physicalDevice;
-}
-
-VkPhysicalDeviceMemoryProperties VulkanContext::memoryProperties() const {
-	return m_memoryProperties;
-}
-
-VkDevice VulkanContext::device() const {
-	return m_device;
-}
-
-VkQueue VulkanContext::graphicsQueue() const {
-	return m_graphicsQueue;
-}
-
-VkQueue VulkanContext::presentQueue() const {
-	return m_presentQueue;
-}
-
-uint32_t VulkanContext::graphicsQueueFamily() const {
-	return m_graphicsQueueFamily;
-}
-
-VkSwapchainKHR VulkanContext::swapchain() const {
-	return m_swapchain;
-}
-
-VkExtent2D VulkanContext::swapchainExtent() const {
-	return m_swapchainExtent;
-}
-
-VkRenderPass VulkanContext::renderPass() const {
-	return m_renderPass;
-}
-
-VkFramebuffer VulkanContext::framebuffer(uint32_t imageIndex) const {
-	return m_swapchainImages[imageIndex].framebuffer;
-}
-
-VkCommandPool VulkanContext::commandPool() const {
-	return m_commandPool;
-}
-
-bool VulkanContext::isInitialized() const {
-	return m_initialized;
-}
-
 void VulkanContext::create(const char *const *extensions, uint32_t extensionCount, bool validation) {
 	if (validation && !checkValidationLayerSupport()) {
 		printf("Validation not supported!\n");

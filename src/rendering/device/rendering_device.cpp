@@ -6,6 +6,9 @@
 #include <vma/vk_mem_alloc.h>
 #include <vulkan/vulkan_core.h>
 
+#include "types/allocated.h"
+#include "types/resource_owner.h"
+
 #include "rendering_device.h"
 
 #define CHECK_VK_RESULT(_expr, msg)                                                                                    \
@@ -44,7 +47,7 @@ void RD::_endSingleTimeCommands(VkCommandBuffer commandBuffer) {
 	vkFreeCommandBuffers(m_context.device(), m_context.commandPool(), 1, &commandBuffer);
 }
 
-AllocatedBuffer RD::bufferCreate(size_t size, VkBufferUsageFlags usage, VmaAllocationInfo *allocInfo) {
+AllocatedBuffer RD::_bufferCreate(size_t size, VkBufferUsageFlags usage, VmaAllocationInfo *allocInfo) {
 	VkBufferCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	createInfo.size = size;
@@ -54,12 +57,14 @@ AllocatedBuffer RD::bufferCreate(size_t size, VkBufferUsageFlags usage, VmaAlloc
 	allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 	allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
-	AllocatedBuffer buffer;
-	vmaCreateBuffer(m_allocator, &createInfo, &allocCreateInfo, &buffer.handle, &buffer.allocation, allocInfo);
-	return buffer;
+	VkBuffer buffer;
+	VmaAllocation allocation;
+	vmaCreateBuffer(m_allocator, &createInfo, &allocCreateInfo, &buffer, &allocation, allocInfo);
+
+	return { Allocation{ allocation, size }, buffer };
 }
 
-void RD::bufferCopy(VkBuffer srcBuffer, VkBuffer dstBuffer, size_t size) {
+void RD::_bufferCopy(VkBuffer srcBuffer, VkBuffer dstBuffer, size_t size) {
 	VkCommandBuffer commandBuffer = _beginSingleTimeCommands();
 
 	VkBufferCopy bufferCopy = {};
@@ -72,156 +77,59 @@ void RD::bufferCopy(VkBuffer srcBuffer, VkBuffer dstBuffer, size_t size) {
 	_endSingleTimeCommands(commandBuffer);
 }
 
-void RD::bufferUpdate(VkBuffer buffer, void *data, size_t size) {
+void RD::_bufferUpload(VkBuffer buffer, const void *data, size_t size) {
 	VmaAllocationInfo allocInfo;
-	AllocatedBuffer staging = bufferCreate(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &allocInfo);
+	AllocatedBuffer stagingBuffer = _bufferCreate(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &allocInfo);
 
 	memcpy(allocInfo.pMappedData, data, size);
-	vmaFlushAllocation(m_allocator, staging.allocation, 0, VK_WHOLE_SIZE);
-	bufferCopy(staging.handle, buffer, size);
+	vmaFlushAllocation(m_allocator, stagingBuffer.allocation.handle, 0, VK_WHOLE_SIZE);
+
+	_bufferCopy(stagingBuffer.buffer, buffer, size);
+	_bufferDestroy(stagingBuffer);
 }
 
-void RD::bufferDestroy(AllocatedBuffer buffer) {
-	vmaDestroyBuffer(m_allocator, buffer.handle, buffer.allocation);
+void RD::_bufferDestroy(AllocatedBuffer &buffer) {
+	vmaDestroyBuffer(m_allocator, buffer.buffer, buffer.allocation.handle);
+	buffer.allocation.size = 0;
 }
 
-AllocatedImage RD::imageCreate(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage) {
-	VkImageCreateInfo imageInfo = {};
-	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	imageInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageInfo.format = format;
-	imageInfo.extent = { width, height, 1 };
-	imageInfo.mipLevels = 1;
-	imageInfo.arrayLayers = 1;
-	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-	imageInfo.usage = usage;
-	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+BufferID RD::bufferCreate(const void *data, size_t size) {
+	VkBufferUsageFlags usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	AllocatedBuffer allocatedBuffer = _bufferCreate(size, usage);
 
-	VmaAllocationCreateInfo allocInfo = {};
-	allocInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-	allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-	allocInfo.priority = 1.0f;
+	if (data != nullptr)
+		_bufferUpload(allocatedBuffer.buffer, data, size);
 
-	AllocatedImage image;
-	vmaCreateImage(m_allocator, &imageInfo, &allocInfo, &image.handle, &image.allocation, nullptr);
-
-	return image;
+	return m_bufferOwner.insert(allocatedBuffer);
 }
 
-void RD::imageUpdate(VkImage image, uint32_t width, uint32_t height, VkFormat format, void *data, size_t size) {
-	VmaAllocationInfo stagingAllocInfo;
-	VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+void RD::bufferCopy(BufferID src, BufferID dst, size_t size) {
+	const AllocatedBuffer *_src = m_bufferOwner.get(src);
+	const AllocatedBuffer *_dst = m_bufferOwner.get(dst);
 
-	AllocatedBuffer stagingBuffer = bufferCreate(size, usage, &stagingAllocInfo);
-	memcpy(stagingAllocInfo.pMappedData, data, size);
-	vmaFlushAllocation(m_allocator, stagingBuffer.allocation, 0, VK_WHOLE_SIZE);
+	if (_src == nullptr || _dst == nullptr)
+		return;
 
-	VkCommandBuffer commandBuffer = _beginSingleTimeCommands();
-
-	{
-		VkImageSubresourceRange subresourceRange = {};
-		subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.levelCount = 1;
-		subresourceRange.baseArrayLayer = 0;
-		subresourceRange.layerCount = 1;
-
-		VkImageMemoryBarrier imageBarrier = {};
-		imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		imageBarrier.srcAccessMask = VK_ACCESS_NONE;
-		imageBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		imageBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		imageBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		imageBarrier.image = image;
-		imageBarrier.subresourceRange = subresourceRange;
-
-		vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0,
-				nullptr, 0, nullptr, 1, &imageBarrier);
-	}
-
-	{
-		VkImageSubresourceLayers imageSubresource = {};
-		imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		imageSubresource.mipLevel = 0;
-		imageSubresource.baseArrayLayer = 0;
-		imageSubresource.layerCount = 1;
-
-		VkExtent3D imageExtent = {};
-		imageExtent.width = width;
-		imageExtent.height = height;
-		imageExtent.depth = 1;
-
-		VkBufferImageCopy region = {};
-		region.imageSubresource = imageSubresource;
-		region.imageExtent = imageExtent;
-
-		vkCmdCopyBufferToImage(
-				commandBuffer, stagingBuffer.handle, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-	}
-
-	{
-		VkImageSubresourceRange subresourceRange = {};
-		subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.levelCount = 1;
-		subresourceRange.baseArrayLayer = 0;
-		subresourceRange.layerCount = 1;
-
-		VkImageMemoryBarrier imageBarrier = {};
-		imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		imageBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		imageBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		imageBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		imageBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		imageBarrier.image = image;
-		imageBarrier.subresourceRange = subresourceRange;
-
-		vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0,
-				nullptr, 0, nullptr, 1, &imageBarrier);
-	}
-
-	_endSingleTimeCommands(commandBuffer);
-	bufferDestroy(stagingBuffer);
+	_bufferCopy(_src->buffer, _dst->buffer, size);
 }
 
-void RD::imageDestroy(AllocatedImage image) {
-	vmaDestroyImage(m_allocator, image.handle, image.allocation);
+void RD::bufferUpload(BufferID buffer, size_t offset, const void *data, size_t size) {
+	const AllocatedBuffer *_buffer = m_bufferOwner.get(buffer);
+
+	if (_buffer == nullptr)
+		return;
+
+	_bufferUpload(_buffer->buffer, data, size);
 }
 
-VkImageView RD::imageViewCreate(VkImage image, VkFormat format) {
-	VkImageSubresourceRange subresourceRange = {};
-	subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	subresourceRange.baseMipLevel = 0;
-	subresourceRange.levelCount = 1;
-	subresourceRange.baseArrayLayer = 0;
-	subresourceRange.layerCount = 1;
+void RD::bufferDestroy(BufferID buffer) {
+	AllocatedBuffer *_buffer = m_bufferOwner.get(buffer);
 
-	VkImageViewCreateInfo viewInfo = {};
-	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	viewInfo.image = image;
-	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	viewInfo.format = format;
-	viewInfo.subresourceRange = subresourceRange;
+	if (_buffer == nullptr)
+		return;
 
-	VkImageView view;
-	CHECK_VK_RESULT(vkCreateImageView(m_context.device(), &viewInfo, nullptr, &view) == VK_SUCCESS,
-			"Image view creation failed!");
-
-	return view;
-}
-
-void RD::imageViewDestroy(VkImageView imageView) {
-	vkDestroyImageView(m_context.device(), imageView, nullptr);
-}
-
-VkInstance RD::vulkanInstance() {
-	return m_context.instance();
+	_bufferDestroy(*_buffer);
+	m_bufferOwner.erase(buffer);
 }
 
 void RD::draw() {
@@ -254,8 +162,8 @@ void RD::draw() {
 	VkExtent2D extent = m_context.swapchainExtent();
 
 	VkViewport viewport = {};
-	viewport.width = (float)extent.width;
-	viewport.height = (float)extent.height;
+	viewport.width = static_cast<float>(extent.width);
+	viewport.height = static_cast<float>(extent.height);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 
@@ -401,12 +309,12 @@ void RD::windowResize(uint32_t width, uint32_t height) {
 	m_resized = true;
 }
 
-void RD::vulkanCreate(const char *const *extensions, uint32_t extensionCount, bool validation) {
+void RD::vkCreate(const char *const *extensions, uint32_t extensionCount, bool validation) {
 	m_context.create(extensions, extensionCount, validation);
 }
 
-void RD::vulkanDestroy() {
-	if (!m_context.isInitialized()) {
+void RD::vkDestroy() {
+	if (!m_context.initialized()) {
 		m_context.destroy();
 		return;
 	}
