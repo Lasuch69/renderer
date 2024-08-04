@@ -8,16 +8,17 @@
 #include <cgltf/cgltf.h>
 #include <stb/stb_image.h>
 
+#include <common/mesh.h>
+#include <common/vertex.h>
+
 #include <io/scene.h>
-#include <io/types/mesh.h>
-#include <io/types/vertex.h>
 
 #include <math/types/mat4.h>
 #include <math/types/vec3.h>
 
 #include "gltf_loader.h"
 
-static math::mat4 transformExtract(const cgltf_node &node) {
+math::mat4 _transformExtract(const cgltf_node &node) {
 	if (node.has_matrix) {
 		math::mat4 matrix;
 		memcpy(&matrix, node.matrix, sizeof(float) * 16);
@@ -27,7 +28,7 @@ static math::mat4 transformExtract(const cgltf_node &node) {
 	return math::mat4(1.0f);
 }
 
-static bool primitiveCheckRequiredAttributes(const cgltf_primitive &primitive) {
+bool _checkRequiredAttributes(const cgltf_primitive &primitive) {
 	const char *REQUIRED_ATTRIBUTES[] = {
 		"POSITION",
 		"NORMAL",
@@ -53,7 +54,7 @@ static bool primitiveCheckRequiredAttributes(const cgltf_primitive &primitive) {
 	return true;
 }
 
-static AABB primitiveBounds(const cgltf_primitive &primitive) {
+void _primitiveBounds(const cgltf_primitive &primitive, math::vec3 *size, math::vec3 *offset) {
 	for (size_t attributeIndex = 0; attributeIndex < primitive.attributes_count; attributeIndex++) {
 		if (strcmp("POSITION", primitive.attributes[attributeIndex].name) != 0)
 			continue;
@@ -64,21 +65,19 @@ static AABB primitiveBounds(const cgltf_primitive &primitive) {
 		const float *min = accessor->min;
 		const float *max = accessor->max;
 
-		return AABB{
-			min[0],
-			min[1],
-			min[2],
-			max[0] - min[0],
-			max[1] - min[1],
-			max[2] - min[2],
-		};
+		*size = { max[0] - min[0], max[1] - min[1], max[2] - min[2] };
+		*offset = { min[0], min[1], min[2] };
+		return;
 	}
 
-	// something went wrong :)
-	return AABB();
+	*size = math::vec3(0.0f);
+	*offset = math::vec3(0.0f);
+
+	printf("Could not find POSITION attribute!");
+	printf("Getting primitive bounding box failed!");
 }
 
-static IndexArray primitiveIndices(const cgltf_primitive &primitive) {
+IndexArray _primitiveIndices(const cgltf_primitive &primitive) {
 	const cgltf_buffer_view *bufferView = primitive.indices->buffer_view;
 
 	const size_t begin = bufferView->offset;
@@ -94,7 +93,7 @@ static IndexArray primitiveIndices(const cgltf_primitive &primitive) {
 	return { reinterpret_cast<uint32_t *>(data), (uint32_t)primitive.indices->count };
 }
 
-static VertexArray primitiveVertices(const cgltf_primitive &primitive) {
+VertexArray _primitiveVertices(const cgltf_primitive &primitive) {
 	Vertex *vertices = nullptr;
 	uint32_t vertexCount = 0;
 
@@ -154,7 +153,7 @@ static VertexArray primitiveVertices(const cgltf_primitive &primitive) {
 	return { vertices, vertexCount };
 }
 
-static bool tangentsCalculate(const IndexArray &indices, VertexArray &vertices) {
+bool _tangentsCalculate(const IndexArray &indices, VertexArray &vertices) {
 	if (indices.count % 3 != 0)
 		return false;
 
@@ -233,7 +232,7 @@ Scene *GLTFLoader::loadFile(const char *path) {
 			nodes[nodeIdx].meshIndex = 0;
 		}
 
-		nodes[nodeIdx].transform = transformExtract(_node);
+		nodes[nodeIdx].transform = _transformExtract(_node);
 	}
 
 	for (size_t meshIdx = 0; meshIdx < data->meshes_count; meshIdx++) {
@@ -245,7 +244,7 @@ Scene *GLTFLoader::loadFile(const char *path) {
 		for (size_t primitiveIdx = 0; primitiveIdx < _mesh.primitives_count; primitiveIdx++) {
 			const cgltf_primitive &_primitive = _mesh.primitives[primitiveIdx];
 
-			if (!primitiveCheckRequiredAttributes(_primitive)) {
+			if (!_checkRequiredAttributes(_primitive)) {
 				fprintf(stderr, "Mesh: %s, primitive id: %ld is missing required attributes!\n", _mesh.name,
 						primitiveIdx);
 
@@ -253,11 +252,14 @@ Scene *GLTFLoader::loadFile(const char *path) {
 				continue;
 			}
 
-			AABB aabb = primitiveBounds(_primitive);
-			IndexArray indices = primitiveIndices(_primitive);
-			VertexArray vertices = primitiveVertices(_primitive);
+			math::vec3 size;
+			math::vec3 offset;
+			_primitiveBounds(_primitive, &size, &offset);
 
-			if (!tangentsCalculate(indices, vertices)) {
+			IndexArray indices = _primitiveIndices(_primitive);
+			VertexArray vertices = _primitiveVertices(_primitive);
+
+			if (!_tangentsCalculate(indices, vertices)) {
 				fprintf(stderr, "Mesh: %s, primitive id: %ld failed to calculate tangents!\n", _mesh.name,
 						primitiveIdx);
 
@@ -268,12 +270,15 @@ Scene *GLTFLoader::loadFile(const char *path) {
 				continue;
 			}
 
-			meshes[meshIdx].primitives[primitiveIdx] = {
-				aabb,
-				indices,
-				vertices,
-				cgltf_material_index(data, _primitive.material),
-			};
+			Primitive primitive = {};
+			primitive.indices = indices;
+			primitive.vertices = vertices;
+			primitive.materialIndex = cgltf_material_index(data, _primitive.material);
+
+			memcpy(primitive.size, &size, sizeof(size));
+			memcpy(primitive.offset, &offset, sizeof(offset));
+
+			meshes[meshIdx].primitives[primitiveIdx] = primitive;
 		}
 	}
 

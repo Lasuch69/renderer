@@ -9,19 +9,16 @@
 template <typename value> class ResourceOwner {
 private:
 	std::unordered_map<size_t, value> m_map;
+	size_t m_idx = 0;
 
 public:
 	inline size_t insert(const value &v) {
-		size_t hash = std::hash<value>{}(v);
-
-		while (m_map.count(hash) == 0 || hash == NULL_HANDLE)
-			hash++;
-
-		m_map[hash] = v;
-		return hash;
+		m_idx++;
+		m_map[m_idx] = v;
+		return m_idx;
 	}
 
-	inline void erase(size_t i) {
+	inline void remove(size_t i) {
 		m_map.erase(i);
 	}
 

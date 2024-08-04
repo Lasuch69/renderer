@@ -2,7 +2,7 @@
 
 #extension GL_GOOGLE_include_directive : enable
 
-#include "include/agx_incl.glsl"
+#include "include/tonemap_incl.glsl"
 
 layout(location = 0) out vec4 outFragColor;
 

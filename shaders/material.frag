@@ -17,45 +17,35 @@ const float PI = 3.14159265359;
 
 // layout(early_fragment_tests) in;
 
-float distributionGGX(float NdotH, float R) {
-	float a = R * R;
-	float a2 = a * a;
-
-	float num = a2;
-	float denom = (NdotH * NdotH) * (a2 - 1.0) + 1.0;
-	denom = PI * denom * denom;
-	return num / denom;
-}
-
-float geometrySchlickGGX(float NdotV, float R) {
-	float r = (R + 1.0);
-	float k = (r * r) / 8.0;
-
-	float num = NdotV;
-	float denom = NdotV * (1.0 - k) + k;
-	return num / denom;
-}
-
-float geometrySmith(float NdotV, float NdotL, float R) {
-	float ggx2 = geometrySchlickGGX(NdotV, R);
-	float ggx1 = geometrySchlickGGX(NdotL, R);
-	return ggx1 * ggx2;
-}
-
 vec3 fresnelSchlick(float cosTheta, vec3 F0) {
-	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+	return (1.0 - F0) * pow(1.0 - cosTheta, 5.0) + F0;
 }
 
-vec3 cookTorranceBRDF(float NdotV, float NdotL, float NdotH, vec3 F, float R) {
-	float distribution = distributionGGX(NdotH, R);
-	float geometrySmith = geometrySmith(NdotV, NdotL, R);
-
-	vec3 numerator = distribution * geometrySmith * F;
-	float denominator = 4.0 * NdotV * NdotL + 0.0001;
-	return numerator / denominator;
+float distributionGGX(float NdotH, float roughness) {
+	// a = roughness * roughness
+	// a2 = a * a
+	float a2 = (roughness * roughness) * (roughness * roughness);
+	float x = (NdotH * NdotH) * (a2 - 1.0) + 1.0;
+	return a2 / ((x * x) * PI);
 }
 
-vec3 lightCalculate(vec3 N, vec3 V, vec3 L, float R, vec3 radiance, vec3 albedo, float metallic) {
+float geometrySchlickGGX(float NdotV, float roughness) {
+	float r = roughness + 1.0;
+	float k = (r * r) * 0.125;
+	return NdotV / (NdotV * (1.0 - k) + k);
+}
+
+float geometrySmith(float NdotV, float NdotL, float roughness) {
+	return geometrySchlickGGX(NdotV, roughness) * geometrySchlickGGX(NdotL, roughness);
+}
+
+vec3 cookTorranceBRDF(float NdotV, float NdotL, float NdotH, vec3 fresnel, float roughness) {
+	vec3 num = distributionGGX(NdotH, roughness) * geometrySmith(NdotV, NdotL, roughness) * fresnel;
+	float denom = 4.0 * (NdotV * NdotL) + 0.0001;
+	return num * (1.0 / denom);
+}
+
+vec3 lightCalculate(vec3 N, vec3 V, vec3 L, float roughness, vec3 radiance, vec3 albedo, float metallic) {
 	vec3 H = normalize(V + L);
 
 	float NdotV = max(dot(N, V), 0.0);
@@ -63,13 +53,12 @@ vec3 lightCalculate(vec3 N, vec3 V, vec3 L, float R, vec3 radiance, vec3 albedo,
 	float NdotH = max(dot(N, H), 0.0);
 	float cosTheta = max(dot(H, V), 0.0);
 
-	vec3 F0 = vec3(0.04);
-	F0 = mix(F0, albedo, metallic);
+	vec3 F0 = mix(vec3(0.04), albedo, metallic);
+	vec3 fresnel = fresnelSchlick(cosTheta, F0);
+	
+	vec3 specular = cookTorranceBRDF(NdotV, NdotL, NdotH, fresnel, roughness);
 
-	vec3 F = fresnelSchlick(cosTheta, F0);
-	vec3 specular = cookTorranceBRDF(NdotV, NdotL, NdotH, F, R);
-
-	vec3 kS = F;
+	vec3 kS = fresnel;
 	vec3 kD = vec3(1.0) - kS;
 	kD *= 1.0 - metallic;
 

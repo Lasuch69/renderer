@@ -8,8 +8,5 @@ layout(push_constant) uniform ObjectConstants {
 };
 
 void main() {
-	vec4 position4 = MODEL_MATRIX * vec4(inPosition, 1.0);
-	vec3 position = vec3(position4) / position4.w;
-	
-	gl_Position = PROJECTION_VIEW_MATRIX * MODEL_MATRIX * vec4(position, 1.0);
+	gl_Position = PROJECTION_VIEW_MATRIX * MODEL_MATRIX * vec4(inPosition, 1.0);
 }

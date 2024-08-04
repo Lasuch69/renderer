@@ -3,8 +3,8 @@
 
 #include <cstddef>
 
-#include <io/types/mesh.h>
-#include <io/types/node.h>
+#include <common/mesh.h>
+#include <common/node.h>
 
 class Scene {
 private:

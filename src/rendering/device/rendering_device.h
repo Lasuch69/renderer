@@ -4,9 +4,9 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "types/allocated.h"
-#include "types/resource_owner.h"
+#include <resource_owner.h>
 
+#include "allocated.h"
 #include "vulkan_context.h"
 
 const uint32_t FRAMES_IN_FLIGHT = 2;
@@ -57,7 +57,9 @@ private:
 	void _bufferDestroy(AllocatedBuffer &buffer);
 
 public:
-	BufferID bufferCreate(const void *data, size_t size);
+	BufferID indexBufferCreate(const void *data, size_t size);
+	BufferID vertexBufferCreate(const void *data, size_t size);
+
 	void bufferCopy(BufferID src, BufferID dst, size_t size);
 	void bufferUpload(BufferID buffer, size_t offset, const void *data, size_t size);
 	void bufferDestroy(BufferID buffer);

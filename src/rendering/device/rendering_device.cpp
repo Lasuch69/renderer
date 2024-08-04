@@ -6,9 +6,9 @@
 #include <vma/vk_mem_alloc.h>
 #include <vulkan/vulkan_core.h>
 
-#include "types/allocated.h"
-#include "types/resource_owner.h"
+#include <resource_owner.h>
 
+#include "allocated.h"
 #include "rendering_device.h"
 
 #define CHECK_VK_RESULT(_expr, msg)                                                                                    \
@@ -93,8 +93,18 @@ void RD::_bufferDestroy(AllocatedBuffer &buffer) {
 	buffer.allocation.size = 0;
 }
 
-BufferID RD::bufferCreate(const void *data, size_t size) {
-	VkBufferUsageFlags usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+BufferID RD::indexBufferCreate(const void *data, size_t size) {
+	VkBufferUsageFlags usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	AllocatedBuffer allocatedBuffer = _bufferCreate(size, usage);
+
+	if (data != nullptr)
+		_bufferUpload(allocatedBuffer.buffer, data, size);
+
+	return m_bufferOwner.insert(allocatedBuffer);
+}
+
+BufferID RD::vertexBufferCreate(const void *data, size_t size) {
+	VkBufferUsageFlags usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 	AllocatedBuffer allocatedBuffer = _bufferCreate(size, usage);
 
 	if (data != nullptr)
@@ -129,7 +139,7 @@ void RD::bufferDestroy(BufferID buffer) {
 		return;
 
 	_bufferDestroy(*_buffer);
-	m_bufferOwner.erase(buffer);
+	m_bufferOwner.remove(buffer);
 }
 
 void RD::draw() {

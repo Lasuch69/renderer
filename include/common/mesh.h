@@ -6,30 +6,27 @@
 
 #include "vertex.h"
 
-typedef struct {
-	float x, y, z;
-	float w, h, d;
-} AABB;
-
-typedef struct {
+typedef struct IndexArray {
 	uint32_t *data;
 	uint32_t count;
 } IndexArray;
 
-typedef struct {
+typedef struct VertexArray {
 	Vertex *data;
 	uint32_t count;
 } VertexArray;
 
-typedef struct {
-	AABB aabb;
+typedef struct Primitive {
+	float size[3];
+	float offset[3];
+
 	IndexArray indices;
 	VertexArray vertices;
 
 	size_t materialIndex;
 } Primitive;
 
-typedef struct {
+typedef struct Mesh {
 	Primitive *primitives;
 	uint32_t primitiveCount;
 } Mesh;

@@ -17,14 +17,15 @@ layout(push_constant) uniform ObjectConstants {
 };
 
 void main() {
-	vec3 tangent = normalize(vec3(MODEL_MATRIX * vec4(inTangent, 0.0)));
-	vec3 normal = normalize(vec3(MODEL_MATRIX * vec4(inNormal, 0.0)));
+	const mat3 MODEL_NORMAL_MATRIX = mat3(MODEL_MATRIX);
+	vec3 tangent = normalize(MODEL_NORMAL_MATRIX * inTangent);
+	vec3 normal = normalize(MODEL_NORMAL_MATRIX * inNormal);
 
 	tangent = normalize(tangent - dot(tangent, normal) * normal);
 	vec3 bitangent = cross(normal, tangent);
 
 	vec4 position4 = MODEL_MATRIX * vec4(inPosition, 1.0);
-	vec3 position = vec3(position4) / position4.w;
+	vec3 position = position4.xyz * (1.0 / position4.w);
 	
 	outPosition = position;
 	outTangent = tangent;
@@ -32,5 +33,5 @@ void main() {
 	outNormal = normal;
 	outTexCoord = inTexCoord;
 
-	gl_Position = PROJECTION_VIEW_MATRIX * MODEL_MATRIX * vec4(position, 1.0);
+	gl_Position = PROJECTION_VIEW_MATRIX * vec4(position, 1.0);
 }
