@@ -1,7 +1,6 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
-#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 
@@ -59,7 +58,7 @@ public:
 		return m_data;
 	}
 
-	inline size_t size() const {
+	inline uint64_t size() const {
 		return m_width * m_height * formatChannelCount(m_format);
 	}
 

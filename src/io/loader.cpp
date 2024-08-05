@@ -9,14 +9,13 @@
 #include <stb/stb_image.h>
 
 #include <common/mesh.h>
+#include <common/scene.h>
 #include <common/vertex.h>
-
-#include <io/scene.h>
 
 #include <math/types/mat4.h>
 #include <math/types/vec3.h>
 
-#include "gltf_loader.h"
+#include "loader.h"
 
 math::mat4 _transformExtract(const cgltf_node &node) {
 	if (node.has_matrix) {
@@ -150,20 +149,28 @@ VertexArray _primitiveVertices(const cgltf_primitive &primitive) {
 		}
 	}
 
-	return { vertices, vertexCount };
+	VertexArray vertexArray = {};
+	vertexArray.data = (uint8_t *)vertices;
+	vertexArray.count = vertexCount;
+	vertexArray.isPacked = false;
+
+	return vertexArray;
 }
 
-bool _tangentsCalculate(const IndexArray &indices, VertexArray &vertices) {
-	if (indices.count % 3 != 0)
+bool _tangentsCalculate(const IndexArray &indexArray, VertexArray &vertexArray) {
+	if (indexArray.count % 3 != 0)
 		return false;
 
-	math::vec3 *tangents = (math::vec3 *)calloc(vertices.count, sizeof(math::vec3));
-	float *averages = (float *)calloc(vertices.count, sizeof(float));
+	math::vec3 *tangents = (math::vec3 *)calloc(vertexArray.count, sizeof(math::vec3));
+	float *averages = (float *)calloc(vertexArray.count, sizeof(float));
 
-	for (uint32_t i = 0; i < indices.count; i += 3) {
-		const Vertex &v0 = vertices.data[indices.data[i + 0]];
-		const Vertex &v1 = vertices.data[indices.data[i + 1]];
-		const Vertex &v2 = vertices.data[indices.data[i + 2]];
+	const uint32_t *indices = indexArray.data;
+	Vertex *vertices = (Vertex *)vertexArray.data;
+
+	for (uint32_t i = 0; i < indexArray.count; i += 3) {
+		const Vertex &v0 = vertices[indices[i + 0]];
+		const Vertex &v1 = vertices[indices[i + 1]];
+		const Vertex &v2 = vertices[indices[i + 2]];
 
 		math::vec3 position0 = {
 			v1.position[0] - v0.position[0],
@@ -186,26 +193,26 @@ bool _tangentsCalculate(const IndexArray &indices, VertexArray &vertices) {
 		float r = 1.0 / (texCoord0X * texCoord1Y - texCoord0Y * texCoord1X);
 		math::vec3 tangent = ((position0 * texCoord1Y) - (position1 * texCoord0Y)) * r;
 
-		tangents[indices.data[i + 0]] += tangent;
-		tangents[indices.data[i + 1]] += tangent;
-		tangents[indices.data[i + 2]] += tangent;
+		tangents[indexArray.data[i + 0]] += tangent;
+		tangents[indexArray.data[i + 1]] += tangent;
+		tangents[indexArray.data[i + 2]] += tangent;
 
-		averages[indices.data[i + 0]] += 1.0;
-		averages[indices.data[i + 1]] += 1.0;
-		averages[indices.data[i + 2]] += 1.0;
+		averages[indexArray.data[i + 0]] += 1.0;
+		averages[indexArray.data[i + 1]] += 1.0;
+		averages[indexArray.data[i + 2]] += 1.0;
 	}
 
-	for (uint32_t i = 0; i < vertices.count; i++) {
+	for (uint32_t i = 0; i < vertexArray.count; i++) {
 		float denom = 1.0 / averages[i];
-		vertices.data[i].tangent[0] = tangents[i].x * denom;
-		vertices.data[i].tangent[1] = tangents[i].y * denom;
-		vertices.data[i].tangent[2] = tangents[i].z * denom;
+		vertices[i].tangent[0] = tangents[i].x * denom;
+		vertices[i].tangent[1] = tangents[i].y * denom;
+		vertices[i].tangent[2] = tangents[i].z * denom;
 	}
 
 	return true;
 }
 
-Scene *GLTFLoader::loadFile(const char *path) {
+Scene *Loader::sceneLoadGlTF(const char *path) {
 	cgltf_options options = {};
 	cgltf_data *data = NULL;
 
@@ -232,7 +239,8 @@ Scene *GLTFLoader::loadFile(const char *path) {
 			nodes[nodeIdx].meshIndex = 0;
 		}
 
-		nodes[nodeIdx].transform = _transformExtract(_node);
+		math::mat4 transform = _transformExtract(_node);
+		memcpy(nodes[nodeIdx].transform, &transform, sizeof(float) * 16);
 	}
 
 	for (size_t meshIdx = 0; meshIdx < data->meshes_count; meshIdx++) {
@@ -282,6 +290,12 @@ Scene *GLTFLoader::loadFile(const char *path) {
 		}
 	}
 
+	Scene *scene = new Scene;
+	scene->nodes = nodes;
+	scene->nodeCount = data->nodes_count;
+	scene->meshes = meshes;
+	scene->meshCount = data->meshes_count;
+
 	cgltf_free(data);
-	return new Scene(nodes, data->nodes_count, meshes, data->meshes_count);
+	return scene;
 }

@@ -6,8 +6,10 @@
 #include <SDL2/SDL_stdinc.h>
 #include <SDL2/SDL_vulkan.h>
 
-#include <io/gltf_loader.h>
-#include <io/scene.h>
+#include <common/scene.h>
+
+#include <io/loader.h>
+#include <io/preprocess/mesh_preprocessor.h>
 
 #include "rendering/renderer.h"
 
@@ -75,10 +77,16 @@ int main(int argc, char *argv[]) {
 
 			if (event.type == SDL_DROPFILE) {
 				char *file = event.drop.file;
-				Scene *scene = GLTFLoader::loadFile(file);
+				Scene *scene = Loader::sceneLoadGlTF(file);
 
-				if (scene != nullptr)
+				if (scene != nullptr) {
+					for (uint32_t i = 0; i < scene->meshCount; i++) {
+						MeshPreprocessor::process(&scene->meshes[i]);
+						Renderer::singleton().meshCreate(scene->meshes[i]);
+					}
+
 					free(scene);
+				}
 
 				SDL_free(file);
 			}

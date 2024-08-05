@@ -1,10 +1,7 @@
 #ifndef MESH_H
 #define MESH_H
 
-#include <cstddef>
 #include <cstdint>
-
-#include "vertex.h"
 
 typedef struct IndexArray {
 	uint32_t *data;
@@ -12,8 +9,9 @@ typedef struct IndexArray {
 } IndexArray;
 
 typedef struct VertexArray {
-	Vertex *data;
+	uint8_t *data;
 	uint32_t count;
+	bool isPacked;
 } VertexArray;
 
 typedef struct Primitive {
@@ -23,7 +21,8 @@ typedef struct Primitive {
 	IndexArray indices;
 	VertexArray vertices;
 
-	size_t materialIndex;
+	bool hasMaterial;
+	uint64_t materialIndex;
 } Primitive;
 
 typedef struct Mesh {

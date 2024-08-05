@@ -14,7 +14,7 @@ typedef size_t MeshInstanceID;
 
 namespace math {
 struct mat4;
-};
+} // namespace math
 
 class Renderer {
 public:

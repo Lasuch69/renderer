@@ -4,6 +4,8 @@
 #include <cstring>
 
 #include <common/mesh.h>
+#include <common/vertex.h>
+
 #include <math/types/mat4.h>
 
 #include <rendering/device/rendering_device.h>
@@ -15,6 +17,14 @@
 		fprintf(stderr, "%s\n", msg);                                                                                  \
 		return;                                                                                                        \
 	}
+
+inline float min(float a, float b) {
+	return a < b ? a : b;
+}
+
+inline float max(float a, float b) {
+	return a > b ? a : b;
+}
 
 MeshID MeshStorage::meshCreate(const Mesh &mesh) {
 	MeshRD meshRD;
@@ -28,7 +38,7 @@ MeshID MeshStorage::meshCreate(const Mesh &mesh) {
 		const VertexArray &vertices = mesh.primitives[i].vertices;
 
 		meshRD.primitives[i].indexBuffer = rd.indexBufferCreate(indices.data, indices.count * sizeof(uint32_t));
-		meshRD.primitives[i].vertexBuffer = rd.vertexBufferCreate(vertices.data, vertices.count * sizeof(Vertex));
+		meshRD.primitives[i].vertexBuffer = rd.vertexBufferCreate(vertices.data, vertices.count * sizeof(PackedVertex));
 		meshRD.primitives[i].indexCount = indices.count;
 
 		memcpy(meshRD.primitives[i].aabb.size, mesh.primitives[i].size, sizeof(float) * 3);
@@ -37,13 +47,13 @@ MeshID MeshStorage::meshCreate(const Mesh &mesh) {
 		const float *size = mesh.primitives[i].size;
 		const float *offset = mesh.primitives[i].offset;
 
-		meshRD.aabb.size[0] = meshRD.aabb.size[0] > size[0] ? meshRD.aabb.size[0] : size[0];
-		meshRD.aabb.size[1] = meshRD.aabb.size[1] > size[1] ? meshRD.aabb.size[1] : size[1];
-		meshRD.aabb.size[2] = meshRD.aabb.size[2] > size[2] ? meshRD.aabb.size[2] : size[2];
+		meshRD.aabb.size[0] = max(meshRD.aabb.size[0], size[0]);
+		meshRD.aabb.size[1] = max(meshRD.aabb.size[1], size[1]);
+		meshRD.aabb.size[2] = max(meshRD.aabb.size[2], size[2]);
 
-		meshRD.aabb.offset[0] = meshRD.aabb.offset[0] < offset[0] ? meshRD.aabb.offset[0] : offset[0];
-		meshRD.aabb.offset[1] = meshRD.aabb.offset[1] < offset[1] ? meshRD.aabb.offset[1] : offset[1];
-		meshRD.aabb.offset[2] = meshRD.aabb.offset[2] < offset[2] ? meshRD.aabb.offset[2] : offset[2];
+		meshRD.aabb.offset[0] = min(meshRD.aabb.offset[0], offset[0]);
+		meshRD.aabb.offset[1] = min(meshRD.aabb.offset[1], offset[1]);
+		meshRD.aabb.offset[2] = min(meshRD.aabb.offset[2], offset[2]);
 	}
 
 	return m_meshOwner.insert(meshRD);

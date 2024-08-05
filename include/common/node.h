@@ -1,14 +1,12 @@
 #ifndef NODE_H
 #define NODE_H
 
-#include <cstddef>
-#include <math/types/mat4.h>
+#include <cstdint>
 
 typedef struct {
 	bool hasMesh;
-	size_t meshIndex;
-
-	math::mat4 transform;
+	uint64_t meshIndex;
+	float transform[16];
 } Node;
 
 #endif // !NODE_H

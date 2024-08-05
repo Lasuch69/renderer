@@ -16,7 +16,7 @@ typedef struct Mesh Mesh;
 
 namespace math {
 struct mat4;
-};
+} // namespace math
 
 class MeshStorage {
 private:
