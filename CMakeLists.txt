@@ -50,6 +50,23 @@ set(THIRDPARTY
 	thirdparty/cgltf/cgltf.c
 	thirdparty/stb/stb_image.cpp
 	thirdparty/vma/vk_mem_alloc.cpp
+    thirdparty/meshoptimizer/meshoptimizer.h
+    thirdparty/meshoptimizer/allocator.cpp
+    thirdparty/meshoptimizer/clusterizer.cpp
+    thirdparty/meshoptimizer/indexcodec.cpp
+    thirdparty/meshoptimizer/indexgenerator.cpp
+    thirdparty/meshoptimizer/overdrawanalyzer.cpp
+    thirdparty/meshoptimizer/overdrawoptimizer.cpp
+    thirdparty/meshoptimizer/quantization.cpp
+    thirdparty/meshoptimizer/simplifier.cpp
+    thirdparty/meshoptimizer/spatialorder.cpp
+    thirdparty/meshoptimizer/stripifier.cpp
+    thirdparty/meshoptimizer/vcacheanalyzer.cpp
+    thirdparty/meshoptimizer/vcacheoptimizer.cpp
+    thirdparty/meshoptimizer/vertexcodec.cpp
+    thirdparty/meshoptimizer/vertexfilter.cpp
+    thirdparty/meshoptimizer/vfetchanalyzer.cpp
+    thirdparty/meshoptimizer/vfetchoptimizer.cpp
 )
 
 set_source_files_properties(${SOURCE} PROPERTIES COMPILE_FLAGS "-Wall")
