@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <vulkan/vulkan_core.h>
 
-#include <common/vertex.h>
+#include <io/types/vertex.h>
 
 const VkVertexInputBindingDescription VERTEX_BINDING = {
 	.binding = 0,

@@ -3,13 +3,11 @@
 #include <cstring>
 
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_stdinc.h>
 #include <SDL2/SDL_vulkan.h>
-
-#include <common/scene.h>
 
 #include <io/loader.h>
 #include <io/preprocess/mesh_preprocessor.h>
+#include <io/types/scene.h>
 
 #include "rendering/renderer.h"
 

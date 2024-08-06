@@ -1,8 +1,8 @@
 #ifndef MESH_PREPROCESSOR_H
 #define MESH_PREPROCESSOR_H
 
-#include <common/mesh.h>
-#include <common/vertex.h>
+#include <io/types/mesh.h>
+#include <io/types/vertex.h>
 
 namespace math {
 struct vec3;

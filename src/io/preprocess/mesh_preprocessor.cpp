@@ -4,8 +4,8 @@
 
 #include <meshoptimizer/meshoptimizer.h>
 
-#include <common/mesh.h>
-#include <common/vertex.h>
+#include <io/types/mesh.h>
+#include <io/types/vertex.h>
 #include <math/types/vec3.h>
 
 #include "encoding.h"

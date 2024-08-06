@@ -3,12 +3,12 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <common/mesh.h>
-#include <common/vertex.h>
-
+#include <io/types/mesh.h>
+#include <io/types/vertex.h>
 #include <math/types/mat4.h>
 
 #include <rendering/device/rendering_device.h>
+#include <rendering/typedefs.h>
 
 #include "mesh_storage.h"
 

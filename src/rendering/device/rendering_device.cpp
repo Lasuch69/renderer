@@ -6,9 +6,9 @@
 #include <vma/vk_mem_alloc.h>
 #include <vulkan/vulkan_core.h>
 
-#include <resource_owner.h>
+#include <rendering/resource_owner.h>
+#include <rendering/typedefs.h>
 
-#include "allocated.h"
 #include "rendering_device.h"
 
 #define CHECK_VK_RESULT(_expr, msg)                                                                                    \

@@ -1,17 +1,13 @@
 #ifndef RENDERING_DEVICE_H
 #define RENDERING_DEVICE_H
 
-#include <cstddef>
-#include <cstdint>
+#include <rendering/resource_owner.h>
+#include <rendering/typedefs.h>
 
-#include <resource_owner.h>
-
-#include "allocated.h"
+#include "types/allocated.h"
 #include "vulkan_context.h"
 
 const uint32_t FRAMES_IN_FLIGHT = 2;
-
-typedef size_t BufferID;
 
 typedef struct VmaAllocator_T *VmaAllocator;
 typedef struct VmaAllocationInfo VmaAllocationInfo;

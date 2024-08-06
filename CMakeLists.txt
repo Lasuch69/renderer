@@ -73,7 +73,7 @@ set_source_files_properties(${SOURCE} PROPERTIES COMPILE_FLAGS "-Wall")
 set_source_files_properties(${THIRDPARTY} PROPERTIES COMPILE_FLAGS "-O3")
 
 add_executable(app ${SOURCE} ${THIRDPARTY})
-target_include_directories(app PRIVATE include src thirdparty)
+target_include_directories(app PRIVATE src thirdparty)
 target_link_libraries(app PRIVATE Vulkan::Vulkan SDL2::SDL2)
 
 add_dependencies(app compile_shaders)

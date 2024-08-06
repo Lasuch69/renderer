@@ -1,16 +1,12 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
-#include <cstddef>
-#include <cstdint>
+#include <rendering/typedefs.h>
 
 typedef struct VkInstance_T *VkInstance;
 typedef struct VkSurfaceKHR_T *VkSurfaceKHR;
 
 typedef struct Mesh Mesh;
-
-typedef size_t MeshID;
-typedef size_t MeshInstanceID;
 
 namespace math {
 struct mat4;

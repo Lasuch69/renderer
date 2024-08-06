@@ -8,9 +8,9 @@
 #include <cgltf/cgltf.h>
 #include <stb/stb_image.h>
 
-#include <common/mesh.h>
-#include <common/scene.h>
-#include <common/vertex.h>
+#include <io/types/mesh.h>
+#include <io/types/scene.h>
+#include <io/types/vertex.h>
 
 #include <math/types/mat4.h>
 #include <math/types/vec3.h>

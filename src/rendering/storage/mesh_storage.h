@@ -1,16 +1,8 @@
 #ifndef MESH_STORAGE_H
 #define MESH_STORAGE_H
 
-#include <cstddef>
-#include <cstdint>
-
-#include <resource_owner.h>
-
-typedef size_t BufferID;
-typedef size_t MaterialID;
-
-typedef size_t MeshID;
-typedef size_t MeshInstanceID;
+#include <rendering/resource_owner.h>
+#include <rendering/typedefs.h>
 
 typedef struct Mesh Mesh;
 
