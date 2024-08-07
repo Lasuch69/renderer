@@ -1,12 +1,12 @@
 #version 450
 
-layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec3 inTangent;
-layout(location = 2) in vec3 inBitangent;
-layout(location = 3) in vec3 inNormal;
-layout(location = 4) in vec2 inTexCoord;
+layout(location = 0) in vec3 in_position;
+layout(location = 1) in vec3 in_tangent;
+layout(location = 2) in vec3 in_bitangent;
+layout(location = 3) in vec3 in_normal;
+layout(location = 4) in vec2 in_tex_coord;
 
-layout(location = 0) out vec4 outFragColor;
+layout(location = 0) out vec4 out_frag_color;
 
 layout(set = 0, binding = 0) uniform SceneUBO {
 	vec3 CAMERA_POSITION;
@@ -17,52 +17,52 @@ const float PI = 3.14159265359;
 
 // layout(early_fragment_tests) in;
 
-vec3 fresnelSchlick(float cosTheta, vec3 F0) {
-	return (1.0 - F0) * pow(1.0 - cosTheta, 5.0) + F0;
+vec3 fresnel_schlick(float cos_theta, vec3 f0) {
+	return (1.0 - f0) * pow(1.0 - cos_theta, 5.0) + f0;
 }
 
-float distributionGGX(float NdotH, float roughness) {
+float distribution_ggx(float n_dot_h, float roughness) {
 	// a = roughness * roughness
 	// a2 = a * a
 	float a2 = (roughness * roughness) * (roughness * roughness);
-	float x = (NdotH * NdotH) * (a2 - 1.0) + 1.0;
+	float x = (n_dot_h * n_dot_h) * (a2 - 1.0) + 1.0;
 	return a2 / ((x * x) * PI);
 }
 
-float geometrySchlickGGX(float NdotV, float roughness) {
+float geometry_schlick_ggx(float n_dot_v, float roughness) {
 	float r = roughness + 1.0;
 	float k = (r * r) * 0.125;
-	return NdotV / (NdotV * (1.0 - k) + k);
+	return n_dot_v / (n_dot_v * (1.0 - k) + k);
 }
 
-float geometrySmith(float NdotV, float NdotL, float roughness) {
-	return geometrySchlickGGX(NdotV, roughness) * geometrySchlickGGX(NdotL, roughness);
+float geometry_smith(float n_dot_v, float n_dot_l, float roughness) {
+	return geometry_schlick_ggx(n_dot_v, roughness) * geometry_schlick_ggx(n_dot_l, roughness);
 }
 
-vec3 cookTorranceBRDF(float NdotV, float NdotL, float NdotH, vec3 fresnel, float roughness) {
-	vec3 num = distributionGGX(NdotH, roughness) * geometrySmith(NdotV, NdotL, roughness) * fresnel;
-	float denom = 4.0 * (NdotV * NdotL) + 0.0001;
+vec3 cook_torrance_brdf(float n_dot_v, float n_dot_l, float n_dot_h, vec3 fresnel, float roughness) {
+	vec3 num = distribution_ggx(n_dot_h, roughness) * geometry_smith(n_dot_v, n_dot_l, roughness) * fresnel;
+	float denom = 4.0 * (n_dot_v * n_dot_l) + 0.0001;
 	return num * (1.0 / denom);
 }
 
-vec3 lightCalculate(vec3 N, vec3 V, vec3 L, float roughness, vec3 radiance, vec3 albedo, float metallic) {
-	vec3 H = normalize(V + L);
+vec3 light_calculate(vec3 normal, vec3 view, vec3 light, float roughness, vec3 radiance, vec3 albedo, float metallic) {
+	vec3 half_vec = normalize(view + light);
 
-	float NdotV = max(dot(N, V), 0.0);
-	float NdotL = max(dot(N, L), 0.0);
-	float NdotH = max(dot(N, H), 0.0);
-	float cosTheta = max(dot(H, V), 0.0);
+	float n_dot_v = max(dot(normal, view), 0.0);
+	float n_dot_l = max(dot(normal, light), 0.0);
+	float n_dot_h = max(dot(normal, half_vec), 0.0);
+	float cos_theta = max(dot(half_vec, view), 0.0);
 
-	vec3 F0 = mix(vec3(0.04), albedo, metallic);
-	vec3 fresnel = fresnelSchlick(cosTheta, F0);
+	vec3 f0 = mix(vec3(0.04), albedo, metallic);
+	vec3 fresnel = fresnel_schlick(cos_theta, f0);
 	
-	vec3 specular = cookTorranceBRDF(NdotV, NdotL, NdotH, fresnel, roughness);
+	vec3 specular = cook_torrance_brdf(n_dot_v, n_dot_l, n_dot_h, fresnel, roughness);
 
-	vec3 kS = fresnel;
-	vec3 kD = vec3(1.0) - kS;
-	kD *= 1.0 - metallic;
+	vec3 k_s = fresnel;
+	vec3 k_d = vec3(1.0) - k_s;
+	k_d *= 1.0 - metallic;
 
-	return (kD * albedo / PI + specular) * radiance * NdotL;
+	return (k_d * albedo / PI + specular) * radiance * n_dot_l;
 }
 
 void main() {
@@ -70,14 +70,14 @@ void main() {
 	float roughness = 1.0;
 	float metallic = 0.0;
 
-	vec3 N = inNormal;
-	vec3 V = normalize(CAMERA_POSITION - inPosition);
-	vec3 L = normalize(vec3(1.0));
+	vec3 normal = in_normal;
+	vec3 view = normalize(CAMERA_POSITION - in_position);
+	vec3 light = normalize(vec3(1.0));
 
 	vec3 radiance = vec3(1.0);
-	vec3 outLight = lightCalculate(N, V, L, roughness, radiance, albedo, metallic);
+	vec3 out_light = light_calculate(normal, view, light, roughness, radiance, albedo, metallic);
 
 	vec3 ambient = vec3(0.04);
-	vec3 color = ambient + outLight;
-	outFragColor = vec4(color, 1.0);
+	vec3 color = ambient + out_light;
+	out_frag_color = vec4(color, 1.0);
 }

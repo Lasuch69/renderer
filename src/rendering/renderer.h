@@ -26,23 +26,23 @@ private:
 	Renderer() {}
 
 public:
-	MeshID meshCreate(const Mesh &mesh);
-	void meshDestroy(MeshID meshID);
+	MeshID mesh_create(const Mesh &mesh);
+	void mesh_destroy(MeshID mesh_id);
 
-	MeshInstanceID meshInstanceCreate();
-	void meshInstanceSetMesh(MeshInstanceID meshInstanceID, MeshID meshID);
-	void meshInstanceSetTransform(MeshInstanceID meshInstanceID, const math::mat4 &transform);
-	void meshInstanceDestroy(MeshInstanceID meshInstanceID);
+	MeshInstanceID mesh_instance_create();
+	void mesh_instance_set_mesh(MeshInstanceID mesh_instance_id, MeshID mesh_id);
+	void mesh_instance_set_transform(MeshInstanceID mesh_instance_id, const math::mat4 &transform);
+	void mesh_instance_destroy(MeshInstanceID mesh_instance_id);
 
 	void draw();
 
-	void windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height);
-	void windowResize(uint32_t width, uint32_t height);
+	void window_create(VkSurfaceKHR surface, uint32_t width, uint32_t height);
+	void window_resize(uint32_t width, uint32_t height);
 
-	void vkCreate(const char **extensions, uint32_t extensionCount, bool validation);
-	void vkDestroy();
+	void vulkan_create(const char **extensions, uint32_t extension_count, bool validation);
+	void vulkan_destroy();
 
-	VkInstance vkInstance() const;
+	VkInstance vulkan_instance() const;
 };
 
 #endif // !RENDERER_H

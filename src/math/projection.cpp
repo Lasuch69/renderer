@@ -21,14 +21,14 @@ const mat4 REVERSE_Z_MATRIX = {
 	{ 0.0f, 0.0f, 1.0f, 1.0f },
 };
 
-mat4 math::perspective(float aspect, float fovY, float zNear, float zFar) {
-	float tanHalfFovY = std::tan(fovY / 2.0f);
+mat4 math::perspective(float aspect, float fov_y, float z_near, float z_far) {
+	float tan_half_fov_y = std::tan(fov_y / 2.0f);
 
-	float x = 1.0f / (aspect * tanHalfFovY);
-	float y = 1.0f / tanHalfFovY;
+	float x = 1.0f / (aspect * tan_half_fov_y);
+	float y = 1.0f / tan_half_fov_y;
 
-	float f = -(zFar + zNear) / (zFar - zNear);
-	float n = -(2.0f * zFar * zNear) / (zFar - zNear);
+	float f = -(z_far + z_near) / (z_far - z_near);
+	float n = -(2.0f * z_far * z_near) / (z_far - z_near);
 
 	mat4 projection = {
 		{ x, 0.0f, 0.0f, 0.0f },

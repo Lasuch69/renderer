@@ -6,50 +6,50 @@
 
 #include "renderer.h"
 
-MeshID Renderer::meshCreate(const Mesh &mesh) {
-	return MeshStorage::singleton().meshCreate(mesh);
+MeshID Renderer::mesh_create(const Mesh &mesh) {
+	return MeshStorage::singleton().mesh_create(mesh);
 }
 
-void Renderer::meshDestroy(MeshID meshID) {
-	MeshStorage::singleton().meshDestroy(meshID);
+void Renderer::mesh_destroy(MeshID mesh_id) {
+	MeshStorage::singleton().mesh_destroy(mesh_id);
 }
 
-MeshInstanceID Renderer::meshInstanceCreate() {
-	return MeshStorage::singleton().meshInstanceCreate();
+MeshInstanceID Renderer::mesh_instance_create() {
+	return MeshStorage::singleton().mesh_instance_create();
 }
 
-void Renderer::meshInstanceSetMesh(MeshInstanceID meshInstanceID, MeshID meshID) {
-	MeshStorage::singleton().meshInstanceSetMesh(meshInstanceID, meshID);
+void Renderer::mesh_instance_set_mesh(MeshInstanceID mesh_instance_id, MeshID mesh_id) {
+	MeshStorage::singleton().mesh_instance_set_mesh(mesh_instance_id, mesh_id);
 }
 
-void Renderer::meshInstanceSetTransform(MeshInstanceID meshInstanceID, const math::mat4 &transform) {
-	MeshStorage::singleton().meshInstanceSetTransform(meshInstanceID, transform);
+void Renderer::mesh_instance_set_transform(MeshInstanceID mesh_instance_id, const math::mat4 &transform) {
+	MeshStorage::singleton().mesh_instance_set_transform(mesh_instance_id, transform);
 }
 
-void Renderer::meshInstanceDestroy(MeshInstanceID meshInstanceID) {
-	MeshStorage::singleton().meshInstanceDestroy(meshInstanceID);
+void Renderer::mesh_instance_destroy(MeshInstanceID mesh_instance_id) {
+	MeshStorage::singleton().mesh_instance_destroy(mesh_instance_id);
 }
 
 void Renderer::draw() {
 	RD::singleton().draw();
 }
 
-void Renderer::windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
-	RD::singleton().windowCreate(surface, width, height);
+void Renderer::window_create(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
+	RD::singleton().window_create(surface, width, height);
 }
 
-void Renderer::windowResize(uint32_t width, uint32_t height) {
-	RD::singleton().windowResize(width, height);
+void Renderer::window_resize(uint32_t width, uint32_t height) {
+	RD::singleton().window_resize(width, height);
 }
 
-void Renderer::vkCreate(const char **extensions, uint32_t extensionCount, bool validation) {
-	RD::singleton().vkCreate(extensions, extensionCount, validation);
+void Renderer::vulkan_create(const char **extensions, uint32_t extension_count, bool validation) {
+	RD::singleton().vulkan_init(extensions, extension_count, validation);
 }
 
-void Renderer::vkDestroy() {
-	RD::singleton().vkDestroy();
+void Renderer::vulkan_destroy() {
+	RD::singleton().vulkan_free();
 }
 
-VkInstance Renderer::vkInstance() const {
-	return RD::singleton().vkInstance();
+VkInstance Renderer::vulkan_instance() const {
+	return RD::singleton().vulkan_instance();
 }

@@ -26,16 +26,16 @@ private:
 		AABB aabb;
 		MaterialID material;
 
-		BufferID indexBuffer;
-		BufferID vertexBuffer;
-		uint32_t indexCount;
+		BufferID index_buffer;
+		BufferID vertex_buffer;
+		uint32_t index_count;
 	} PrimitiveRD;
 
 	typedef struct MeshRD {
 		// INFO: used for frustum culling
 		AABB aabb;
 		PrimitiveRD *primitives;
-		uint32_t primitiveCount;
+		uint32_t primitive_count;
 	} MeshRD;
 
 	typedef struct MeshInstanceRD {
@@ -55,17 +55,17 @@ public:
 private:
 	MeshStorage() {}
 
-	ResourceOwner<MeshRD> m_meshOwner;
-	ResourceOwner<MeshInstanceRD> m_meshInstanceOwner;
+	ResourceOwner<MeshRD> m_mesh_owner;
+	ResourceOwner<MeshInstanceRD> m_mesh_instance_owner;
 
 public:
-	MeshID meshCreate(const Mesh &mesh);
-	void meshDestroy(MeshID meshID);
+	MeshID mesh_create(const Mesh &mesh);
+	void mesh_destroy(MeshID mesh_id);
 
-	MeshInstanceID meshInstanceCreate();
-	void meshInstanceSetMesh(MeshInstanceID meshInstanceID, MeshID meshID);
-	void meshInstanceSetTransform(MeshInstanceID meshInstanceID, const math::mat4 &transform);
-	void meshInstanceDestroy(MeshInstanceID meshInstanceID);
+	MeshInstanceID mesh_instance_create();
+	void mesh_instance_set_mesh(MeshInstanceID mesh_instance_id, MeshID mesh_id);
+	void mesh_instance_set_transform(MeshInstanceID mesh_instance_id, const math::mat4 &transform);
+	void mesh_instance_destroy(MeshInstanceID meshInstance_id);
 };
 
 #endif // !MESH_STORAGE_H

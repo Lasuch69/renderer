@@ -16,8 +16,8 @@ const VkVertexInputAttributeDescription VERTEX_ATTRIBUTES[] = {
 	{ 0, 0, VK_FORMAT_R16G16B16_UNORM, offsetof(PackedVertex, position) },
 	{ 1, 0, VK_FORMAT_R8G8B8_UNORM, offsetof(PackedVertex, tangent) },
 	{ 2, 0, VK_FORMAT_R8G8B8_UNORM, offsetof(PackedVertex, normal) },
-	{ 3, 0, VK_FORMAT_R8G8B8_UNORM, offsetof(PackedVertex, texCoord) },
-	{ 4, 0, VK_FORMAT_R8_UINT, offsetof(PackedVertex, texOffset) },
+	{ 3, 0, VK_FORMAT_R8G8B8_UNORM, offsetof(PackedVertex, tex_coord) },
+	{ 4, 0, VK_FORMAT_R8_UINT, offsetof(PackedVertex, tex_offset) },
 };
 
 #endif // !VK_VERTEX_H

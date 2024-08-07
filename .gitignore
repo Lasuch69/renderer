@@ -19,6 +19,6 @@ _deps
 *.a
 
 # shaders
-*.u32
+*.spv
 
 app

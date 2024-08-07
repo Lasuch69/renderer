@@ -16,160 +16,161 @@
 		printf("%s\n", msg);                                                                                           \
 	}
 
-VkCommandBuffer RD::_beginSingleTimeCommands() {
-	VkCommandBufferAllocateInfo allocInfo = {};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.commandPool = m_context.commandPool();
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandBufferCount = 1;
+VkCommandBuffer RD::_begin_single_time_commands() {
+	VkCommandBufferAllocateInfo alloc_info = {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	alloc_info.commandPool = m_context.command_pool();
+	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	alloc_info.commandBufferCount = 1;
 
-	VkCommandBuffer commandBuffer;
-	vkAllocateCommandBuffers(m_context.device(), &allocInfo, &commandBuffer);
+	VkCommandBuffer command_buffer;
+	vkAllocateCommandBuffers(m_context.device(), &alloc_info, &command_buffer);
 
-	VkCommandBufferBeginInfo beginInfo = {};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	VkCommandBufferBeginInfo begin_info = {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-	vkBeginCommandBuffer(commandBuffer, &beginInfo);
-	return commandBuffer;
+	vkBeginCommandBuffer(command_buffer, &begin_info);
+	return command_buffer;
 }
 
-void RD::_endSingleTimeCommands(VkCommandBuffer commandBuffer) {
-	vkEndCommandBuffer(commandBuffer);
+void RD::_end_single_time_commands(VkCommandBuffer command_buffer) {
+	vkEndCommandBuffer(command_buffer);
 
-	VkSubmitInfo submitInfo = {};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
+	VkSubmitInfo submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &command_buffer;
 
-	vkQueueSubmit(m_context.graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(m_context.graphicsQueue());
-	vkFreeCommandBuffers(m_context.device(), m_context.commandPool(), 1, &commandBuffer);
+	vkQueueSubmit(m_context.graphics_queue(), 1, &submit_info, VK_NULL_HANDLE);
+	vkQueueWaitIdle(m_context.graphics_queue());
+	vkFreeCommandBuffers(m_context.device(), m_context.command_pool(), 1, &command_buffer);
 }
 
-AllocatedBuffer RD::_bufferCreate(size_t size, VkBufferUsageFlags usage, VmaAllocationInfo *allocInfo) {
-	VkBufferCreateInfo createInfo = {};
-	createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	createInfo.size = size;
-	createInfo.usage = usage;
+AllocatedBuffer RD::_buffer_create(size_t size, VkBufferUsageFlags usage, VmaAllocationInfo *alloc_info) {
+	VkBufferCreateInfo buffer_Info = {};
+	buffer_Info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_Info.size = size;
+	buffer_Info.usage = usage;
 
-	VmaAllocationCreateInfo allocCreateInfo = {};
-	allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-	allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+	VmaAllocationCreateInfo allocation_info = {};
+	allocation_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+	allocation_info.usage = VMA_MEMORY_USAGE_AUTO;
 
 	VkBuffer buffer;
 	VmaAllocation allocation;
-	vmaCreateBuffer(m_allocator, &createInfo, &allocCreateInfo, &buffer, &allocation, allocInfo);
+	vmaCreateBuffer(m_allocator, &buffer_Info, &allocation_info, &buffer, &allocation, alloc_info);
 
 	return { Allocation{ allocation, size }, buffer };
 }
 
-void RD::_bufferCopy(VkBuffer srcBuffer, VkBuffer dstBuffer, size_t size) {
-	VkCommandBuffer commandBuffer = _beginSingleTimeCommands();
+void RD::_buffer_copy(VkBuffer src_buffer, VkBuffer dst_buffer, size_t size) {
+	VkCommandBuffer command_buffer = _begin_single_time_commands();
 
-	VkBufferCopy bufferCopy = {};
-	bufferCopy.srcOffset = 0;
-	bufferCopy.dstOffset = 0;
-	bufferCopy.size = size;
+	VkBufferCopy buffer_copy = {};
+	buffer_copy.srcOffset = 0;
+	buffer_copy.dstOffset = 0;
+	buffer_copy.size = size;
 
-	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &bufferCopy);
+	vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &buffer_copy);
 
-	_endSingleTimeCommands(commandBuffer);
+	_end_single_time_commands(command_buffer);
 }
 
-void RD::_bufferUpload(VkBuffer buffer, const void *data, size_t size) {
-	VmaAllocationInfo allocInfo;
-	AllocatedBuffer stagingBuffer = _bufferCreate(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &allocInfo);
+void RD::_buffer_upload(VkBuffer buffer, const void *data, size_t size) {
+	VmaAllocationInfo alloc_info;
+	AllocatedBuffer staging = _buffer_create(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &alloc_info);
 
-	memcpy(allocInfo.pMappedData, data, size);
-	vmaFlushAllocation(m_allocator, stagingBuffer.allocation.handle, 0, VK_WHOLE_SIZE);
+	memcpy(alloc_info.pMappedData, data, size);
+	vmaFlushAllocation(m_allocator, staging.allocation.handle, 0, VK_WHOLE_SIZE);
 
-	_bufferCopy(stagingBuffer.buffer, buffer, size);
-	_bufferDestroy(stagingBuffer);
+	_buffer_copy(staging.buffer, buffer, size);
+	_buffer_destroy(staging);
 }
 
-void RD::_bufferDestroy(AllocatedBuffer &buffer) {
+void RD::_buffer_destroy(AllocatedBuffer &buffer) {
 	vmaDestroyBuffer(m_allocator, buffer.buffer, buffer.allocation.handle);
 	buffer.allocation.size = 0;
 }
 
-BufferID RD::indexBufferCreate(const void *data, size_t size) {
+BufferID RD::index_buffer_create(const void *data, size_t size) {
 	VkBufferUsageFlags usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-	AllocatedBuffer allocatedBuffer = _bufferCreate(size, usage);
+	AllocatedBuffer allocated_buffer = _buffer_create(size, usage);
 
 	if (data != nullptr)
-		_bufferUpload(allocatedBuffer.buffer, data, size);
+		_buffer_upload(allocated_buffer.buffer, data, size);
 
-	return m_bufferOwner.insert(allocatedBuffer);
+	return m_buffer_owner.insert(allocated_buffer);
 }
 
-BufferID RD::vertexBufferCreate(const void *data, size_t size) {
+BufferID RD::vertex_buffer_create(const void *data, size_t size) {
 	VkBufferUsageFlags usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-	AllocatedBuffer allocatedBuffer = _bufferCreate(size, usage);
+	AllocatedBuffer allocated_buffer = _buffer_create(size, usage);
 
 	if (data != nullptr)
-		_bufferUpload(allocatedBuffer.buffer, data, size);
+		_buffer_upload(allocated_buffer.buffer, data, size);
 
-	return m_bufferOwner.insert(allocatedBuffer);
+	return m_buffer_owner.insert(allocated_buffer);
 }
 
-void RD::bufferCopy(BufferID src, BufferID dst, size_t size) {
-	const AllocatedBuffer *_src = m_bufferOwner.get(src);
-	const AllocatedBuffer *_dst = m_bufferOwner.get(dst);
+void RD::buffer_copy(BufferID src_buffer, BufferID dst_buffer, size_t size) {
+	const AllocatedBuffer *_src_buffer = m_buffer_owner.get(src_buffer);
+	const AllocatedBuffer *_dst_buffer = m_buffer_owner.get(dst_buffer);
 
-	if (_src == nullptr || _dst == nullptr)
+	if (_src_buffer == nullptr || _dst_buffer == nullptr)
 		return;
 
-	_bufferCopy(_src->buffer, _dst->buffer, size);
+	_buffer_copy(_src_buffer->buffer, _dst_buffer->buffer, size);
 }
 
-void RD::bufferUpload(BufferID buffer, size_t offset, const void *data, size_t size) {
-	const AllocatedBuffer *_buffer = m_bufferOwner.get(buffer);
+void RD::buffer_upload(BufferID buffer, size_t offset, const void *data, size_t size) {
+	const AllocatedBuffer *_buffer = m_buffer_owner.get(buffer);
 
 	if (_buffer == nullptr)
 		return;
 
-	_bufferUpload(_buffer->buffer, data, size);
+	_buffer_upload(_buffer->buffer, data, size);
 }
 
-void RD::bufferDestroy(BufferID buffer) {
-	AllocatedBuffer *_buffer = m_bufferOwner.get(buffer);
+void RD::buffer_destroy(BufferID buffer) {
+	AllocatedBuffer *_buffer = m_buffer_owner.get(buffer);
 
 	if (_buffer == nullptr)
 		return;
 
-	_bufferDestroy(*_buffer);
-	m_bufferOwner.remove(buffer);
+	_buffer_destroy(*_buffer);
+	m_buffer_owner.remove(buffer);
 }
 
 void RD::draw() {
-	CHECK_VK_RESULT(vkWaitForFences(m_context.device(), 1, &m_renderFences[m_frame], VK_TRUE, UINT64_MAX) == VK_SUCCESS,
+	CHECK_VK_RESULT(
+			vkWaitForFences(m_context.device(), 1, &m_render_fences[m_frame], VK_TRUE, UINT64_MAX) == VK_SUCCESS,
 			"Fence timed out!");
 
-	uint32_t imageIndex = 0;
+	uint32_t image_index = 0;
 	VkResult result = vkAcquireNextImageKHR(m_context.device(), m_context.swapchain(), UINT64_MAX,
-			m_presentSemaphores[m_frame], VK_NULL_HANDLE, &imageIndex);
+			m_present_semaphores[m_frame], VK_NULL_HANDLE, &image_index);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-		m_context.windowResize(m_width, m_height);
+		m_context.window_resize(m_width, m_height);
 	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 		printf("Swapchain image acquire failed!\n");
 	}
 
-	vkResetFences(m_context.device(), 1, &m_renderFences[m_frame]);
+	vkResetFences(m_context.device(), 1, &m_render_fences[m_frame]);
 
-	VkCommandBuffer commandBuffer = m_commandBuffers[m_frame];
-	vkResetCommandBuffer(commandBuffer, 0);
+	VkCommandBuffer command_buffer = m_command_buffers[m_frame];
+	vkResetCommandBuffer(command_buffer, 0);
 
-	VkCommandBufferBeginInfo beginInfo = {};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	VkCommandBufferBeginInfo begin_info = {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+	vkBeginCommandBuffer(command_buffer, &begin_info);
 
-	VkClearValue clearValue = {};
-	clearValue.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+	VkClearValue clear_value = {};
+	clear_value.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
 
-	VkExtent2D extent = m_context.swapchainExtent();
+	VkExtent2D extent = m_context.swapchain_extent();
 
 	VkViewport viewport = {};
 	viewport.width = static_cast<float>(extent.width);
@@ -180,53 +181,53 @@ void RD::draw() {
 	VkRect2D scissor = {};
 	scissor.extent = extent;
 
-	VkRect2D renderArea = {};
-	renderArea.extent = extent;
+	VkRect2D render_area = {};
+	render_area.extent = extent;
 
-	VkRenderPassBeginInfo renderPassInfo = {};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	renderPassInfo.renderPass = m_context.renderPass();
-	renderPassInfo.framebuffer = m_context.framebuffer(imageIndex);
-	renderPassInfo.renderArea = renderArea;
-	renderPassInfo.clearValueCount = 1;
-	renderPassInfo.pClearValues = &clearValue;
+	VkRenderPassBeginInfo render_pass_info = {};
+	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	render_pass_info.renderPass = m_context.render_pass();
+	render_pass_info.framebuffer = m_context.framebuffer(image_index);
+	render_pass_info.renderArea = render_area;
+	render_pass_info.clearValueCount = 1;
+	render_pass_info.pClearValues = &clear_value;
 
-	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
-	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+	vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
-	vkCmdEndRenderPass(commandBuffer);
-	vkEndCommandBuffer(commandBuffer);
+	vkCmdEndRenderPass(command_buffer);
+	vkEndCommandBuffer(command_buffer);
 
-	VkPipelineStageFlags waitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
-	VkSubmitInfo submitInfo = {};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = &m_presentSemaphores[m_frame];
-	submitInfo.pWaitDstStageMask = &waitDstStageMask;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
-	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = &m_renderSemaphores[m_frame];
+	VkSubmitInfo submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.waitSemaphoreCount = 1;
+	submit_info.pWaitSemaphores = &m_present_semaphores[m_frame];
+	submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &command_buffer;
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = &m_render_semaphores[m_frame];
 
-	vkQueueSubmit(m_context.graphicsQueue(), 1, &submitInfo, m_renderFences[m_frame]);
+	vkQueueSubmit(m_context.graphics_queue(), 1, &submit_info, m_render_fences[m_frame]);
 
 	VkSwapchainKHR swapchain = m_context.swapchain();
 
-	VkPresentInfoKHR presentInfo = {};
-	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = &m_renderSemaphores[m_frame];
-	presentInfo.swapchainCount = 1;
-	presentInfo.pSwapchains = &swapchain;
-	presentInfo.pImageIndices = &imageIndex;
+	VkPresentInfoKHR present_info = {};
+	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	present_info.waitSemaphoreCount = 1;
+	present_info.pWaitSemaphores = &m_render_semaphores[m_frame];
+	present_info.swapchainCount = 1;
+	present_info.pSwapchains = &swapchain;
+	present_info.pImageIndices = &image_index;
 
-	result = vkQueuePresentKHR(m_context.presentQueue(), &presentInfo);
+	result = vkQueuePresentKHR(m_context.present_queue(), &present_info);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_resized) {
-		m_context.windowResize(m_width, m_height);
+		m_context.window_resize(m_width, m_height);
 		m_resized = false;
 	} else if (result != VK_SUCCESS) {
 		printf("Swapchain image presentation failed!\n");
@@ -235,8 +236,8 @@ void RD::draw() {
 	m_frame = (m_frame + 1) % FRAMES_IN_FLIGHT;
 }
 
-void RD::windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
-	m_context.windowCreate(surface, width, height);
+void RD::window_create(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
+	m_context.window_create(surface, width, height);
 
 	m_width = width;
 	m_height = height;
@@ -244,73 +245,74 @@ void RD::windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
 	// allocator
 
 	{
-		VmaAllocatorCreateInfo allocatorInfo = {};
-		allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_0;
-		allocatorInfo.instance = m_context.instance();
-		allocatorInfo.physicalDevice = m_context.physicalDevice();
-		allocatorInfo.device = m_context.device();
+		VmaAllocatorCreateInfo allocator_info = {};
+		allocator_info.vulkanApiVersion = VK_API_VERSION_1_0;
+		allocator_info.instance = m_context.instance();
+		allocator_info.physicalDevice = m_context.physical_device();
+		allocator_info.device = m_context.device();
 
-		CHECK_VK_RESULT(vmaCreateAllocator(&allocatorInfo, &m_allocator) == VK_SUCCESS, "Allocator creation failed!");
+		CHECK_VK_RESULT(vmaCreateAllocator(&allocator_info, &m_allocator) == VK_SUCCESS, "Allocator creation failed!");
 	}
 
 	// commands
 
 	{
-		VkCommandBufferAllocateInfo allocInfo = {};
-		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.commandPool = m_context.commandPool();
-		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandBufferCount = FRAMES_IN_FLIGHT;
+		VkCommandBufferAllocateInfo alloc_info = {};
+		alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		alloc_info.commandPool = m_context.command_pool();
+		alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		alloc_info.commandBufferCount = FRAMES_IN_FLIGHT;
 
-		CHECK_VK_RESULT(vkAllocateCommandBuffers(m_context.device(), &allocInfo, m_commandBuffers) == VK_SUCCESS,
+		CHECK_VK_RESULT(vkAllocateCommandBuffers(m_context.device(), &alloc_info, m_command_buffers) == VK_SUCCESS,
 				"Command buffers allocation failed!");
 	}
 
 	// sync
 
 	{
-		VkSemaphoreCreateInfo semaphoreInfo = {};
-		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+		VkSemaphoreCreateInfo semaphore_info = {};
+		semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-		VkFenceCreateInfo fenceInfo = {};
-		fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-		fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+		VkFenceCreateInfo fence_info = {};
+		fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+		fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
 		for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
-			vkCreateSemaphore(m_context.device(), &semaphoreInfo, nullptr, &m_presentSemaphores[i]);
-			vkCreateSemaphore(m_context.device(), &semaphoreInfo, nullptr, &m_renderSemaphores[i]);
-			vkCreateFence(m_context.device(), &fenceInfo, nullptr, &m_renderFences[i]);
+			vkCreateSemaphore(m_context.device(), &semaphore_info, nullptr, &m_present_semaphores[i]);
+			vkCreateSemaphore(m_context.device(), &semaphore_info, nullptr, &m_render_semaphores[i]);
+			vkCreateFence(m_context.device(), &fence_info, nullptr, &m_render_fences[i]);
 		}
 	}
 
 	// descriptor pool
 
 	{
-		VkDescriptorPoolSize poolSizes[] = {
+		VkDescriptorPoolSize pool_sizes[] = {
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, FRAMES_IN_FLIGHT },
 			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1 },
 			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1 },
 		};
 
-		uint32_t maxSets = 0;
-		for (const VkDescriptorPoolSize &poolSize : poolSizes) {
-			maxSets += poolSize.descriptorCount;
+		uint32_t max_sets = 0;
+		for (const VkDescriptorPoolSize &pool_size : pool_sizes) {
+			max_sets += pool_size.descriptorCount;
 		}
 
-		VkDescriptorPoolCreateInfo poolInfo = {};
-		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-		poolInfo.maxSets = maxSets;
-		poolInfo.poolSizeCount = sizeof(poolSizes) / sizeof(poolSizes[0]);
-		poolInfo.pPoolSizes = poolSizes;
+		VkDescriptorPoolCreateInfo pool_info = {};
+		pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		pool_info.maxSets = max_sets;
+		pool_info.poolSizeCount = sizeof(pool_sizes) / sizeof(pool_sizes[0]);
+		pool_info.pPoolSizes = pool_sizes;
 
-		CHECK_VK_RESULT(vkCreateDescriptorPool(m_context.device(), &poolInfo, nullptr, &m_descriptorPool) == VK_SUCCESS,
+		CHECK_VK_RESULT(
+				vkCreateDescriptorPool(m_context.device(), &pool_info, nullptr, &m_descriptor_pool) == VK_SUCCESS,
 				"Descriptor pool creation failed!");
 	}
 
 	m_initialized = true;
 }
 
-void RD::windowResize(uint32_t width, uint32_t height) {
+void RD::window_resize(uint32_t width, uint32_t height) {
 	if (m_width == width && m_height == height)
 		return;
 
@@ -319,11 +321,11 @@ void RD::windowResize(uint32_t width, uint32_t height) {
 	m_resized = true;
 }
 
-void RD::vkCreate(const char *const *extensions, uint32_t extensionCount, bool validation) {
-	m_context.create(extensions, extensionCount, validation);
+void RD::vulkan_init(const char *const *extensions, uint32_t extension_count, bool validation) {
+	m_context.create(extensions, extension_count, validation);
 }
 
-void RD::vkDestroy() {
+void RD::vulkan_free() {
 	if (!m_context.initialized()) {
 		m_context.destroy();
 		return;
@@ -333,9 +335,9 @@ void RD::vkDestroy() {
 
 	if (m_initialized) {
 		for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
-			vkDestroySemaphore(m_context.device(), m_presentSemaphores[i], nullptr);
-			vkDestroySemaphore(m_context.device(), m_renderSemaphores[i], nullptr);
-			vkDestroyFence(m_context.device(), m_renderFences[i], nullptr);
+			vkDestroySemaphore(m_context.device(), m_present_semaphores[i], nullptr);
+			vkDestroySemaphore(m_context.device(), m_render_semaphores[i], nullptr);
+			vkDestroyFence(m_context.device(), m_render_fences[i], nullptr);
 		}
 
 		vmaDestroyAllocator(m_allocator);

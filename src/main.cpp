@@ -14,18 +14,18 @@ const int WIDTH = 800;
 const int HEIGHT = 600;
 
 int main(int argc, char *argv[]) {
-	bool wayland = false;
-	bool validate = false;
+	bool use_wayland = false;
+	bool use_validation = false;
 
 	for (int i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "--wayland") == 0)
-			wayland = true;
+			use_wayland = true;
 
 		if (strcmp(argv[i], "--validate") == 0)
-			validate = true;
+			use_validation = true;
 	}
 
-	if (wayland) {
+	if (use_wayland) {
 		SDL_SetHint(SDL_HINT_VIDEODRIVER, "wayland");
 	} else {
 		SDL_SetHint(SDL_HINT_VIDEODRIVER, "x11");
@@ -46,18 +46,18 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	uint32_t extensionCount = 0;
-	SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, nullptr);
+	uint32_t extension_count = 0;
+	SDL_Vulkan_GetInstanceExtensions(window, &extension_count, nullptr);
 
-	const char **extensions = (const char **)malloc(extensionCount * sizeof(const char *));
-	SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, extensions);
+	const char **extensions = (const char **)malloc(extension_count * sizeof(const char *));
+	SDL_Vulkan_GetInstanceExtensions(window, &extension_count, extensions);
 
-	Renderer::singleton().vkCreate(extensions, extensionCount, validate);
-	VkInstance instance = Renderer::singleton().vkInstance();
+	Renderer::singleton().vulkan_create(extensions, extension_count, use_validation);
+	VkInstance instance = Renderer::singleton().vulkan_instance();
 
 	VkSurfaceKHR surface;
 	SDL_Vulkan_CreateSurface(window, instance, &surface);
-	Renderer::singleton().windowCreate(surface, WIDTH, HEIGHT);
+	Renderer::singleton().window_create(surface, WIDTH, HEIGHT);
 
 	bool quit = false;
 	while (!quit) {
@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
 			if (event.type == SDL_WINDOWEVENT_RESIZED) {
 				int width, height;
 				SDL_Vulkan_GetDrawableSize(window, &width, &height);
-				Renderer::singleton().windowResize(width, height);
+				Renderer::singleton().window_resize(width, height);
 			}
 
 			if (event.type == SDL_DROPFILE) {

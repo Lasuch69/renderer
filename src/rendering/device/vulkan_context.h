@@ -12,38 +12,38 @@ private:
 
 	VkSurfaceKHR m_surface;
 
-	VkPhysicalDevice m_physicalDevice;
-	VkPhysicalDeviceMemoryProperties m_memoryProperties;
+	VkPhysicalDevice m_physical_device;
+	VkPhysicalDeviceMemoryProperties m_memory_properties;
 
 	VkDevice m_device;
 
-	VkQueue m_graphicsQueue;
-	VkQueue m_presentQueue;
+	VkQueue m_graphics_queue;
+	VkQueue m_present_queue;
 
-	uint32_t m_graphicsQueueFamily;
+	uint32_t m_graphics_queue_family;
 
 	typedef struct {
 		VkImageView view;
 		VkFramebuffer framebuffer;
 	} SwapchainImageResource;
 
-	uint32_t m_swapchainImageCount;
-	SwapchainImageResource *m_swapchainImages;
+	uint32_t m_swapchain_image_count;
+	SwapchainImageResource *m_swapchain_images;
 
 	VkSwapchainKHR m_swapchain;
-	VkExtent2D m_swapchainExtent;
-	VkRenderPass m_renderPass;
+	VkExtent2D m_swapchain_extent;
+	VkRenderPass m_render_pass;
 
-	VkImage m_colorImage;
-	VkDeviceMemory m_colorImageMemory;
-	VkImageView m_colorImageView;
+	VkImage m_color_image;
+	VkDeviceMemory m_color_image_memory;
+	VkImageView m_color_image_view;
 
-	VkCommandPool m_commandPool;
+	VkCommandPool m_command_pool;
 
 	bool m_initialized = false;
 
-	void _swapchainCreate(uint32_t width, uint32_t height);
-	void _swapchainDestroy();
+	void _swapchain_create(uint32_t width, uint32_t height);
+	void _swapchain_destroy();
 
 public:
 	inline VkInstance instance() const {
@@ -54,48 +54,48 @@ public:
 		return m_surface;
 	}
 
-	inline VkPhysicalDevice physicalDevice() const {
-		return m_physicalDevice;
+	inline VkPhysicalDevice physical_device() const {
+		return m_physical_device;
 	}
 
-	inline VkPhysicalDeviceMemoryProperties memoryProperties() const {
-		return m_memoryProperties;
+	inline VkPhysicalDeviceMemoryProperties memory_properties() const {
+		return m_memory_properties;
 	}
 
 	inline VkDevice device() const {
 		return m_device;
 	}
 
-	inline VkQueue graphicsQueue() const {
-		return m_graphicsQueue;
+	inline VkQueue graphics_queue() const {
+		return m_graphics_queue;
 	}
 
-	inline VkQueue presentQueue() const {
-		return m_presentQueue;
+	inline VkQueue present_queue() const {
+		return m_present_queue;
 	}
 
-	inline uint32_t graphicsQueueFamily() const {
-		return m_graphicsQueueFamily;
+	inline uint32_t graphics_queue_family() const {
+		return m_graphics_queue_family;
 	}
 
 	inline VkSwapchainKHR swapchain() const {
 		return m_swapchain;
 	}
 
-	inline VkExtent2D swapchainExtent() const {
-		return m_swapchainExtent;
+	inline VkExtent2D swapchain_extent() const {
+		return m_swapchain_extent;
 	}
 
-	inline VkRenderPass renderPass() const {
-		return m_renderPass;
+	inline VkRenderPass render_pass() const {
+		return m_render_pass;
 	}
 
 	inline VkFramebuffer framebuffer(uint32_t imageIndex) const {
-		return m_swapchainImages[imageIndex].framebuffer;
+		return m_swapchain_images[imageIndex].framebuffer;
 	}
 
-	inline VkCommandPool commandPool() const {
-		return m_commandPool;
+	inline VkCommandPool command_pool() const {
+		return m_command_pool;
 	}
 
 	inline bool initialized() const {
@@ -105,8 +105,8 @@ public:
 	void create(const char *const *extensions, uint32_t extensionCount, bool validation);
 	void destroy();
 
-	void windowCreate(VkSurfaceKHR surface, uint32_t width, uint32_t height);
-	void windowResize(uint32_t width, uint32_t height);
+	void window_create(VkSurfaceKHR surface, uint32_t width, uint32_t height);
+	void window_resize(uint32_t width, uint32_t height);
 };
 
 #endif // !VULKAN_CONTEXT_H

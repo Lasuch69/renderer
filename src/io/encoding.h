@@ -5,16 +5,14 @@
 
 #define UINT12_MAX 0xfff
 
-const float ONE_DIV_UINT12_MAX = 1.0f / UINT12_MAX;
-
 namespace encoding {
 
 typedef struct {
 	float x, y;
 } float32x2;
 
-// y:  0 - 11 bit
-// x: 12 - 23 bit
+// x:  0 - 11 bit
+// y: 12 - 23 bit
 typedef struct unorm12x2 {
 	uint8_t data[3];
 } unorm12x2;
@@ -67,6 +65,8 @@ inline float32x2 unorm12x2_to_float32x2(const unorm12x2 &value) {
 
 	uint16_t x = (i >> 8) & 0xfff;
 	uint16_t y = (i >> 20) & 0xfff;
+
+	const float ONE_DIV_UINT12_MAX = 1.0f / UINT12_MAX;
 
 	float32x2 out;
 	out.x = x * ONE_DIV_UINT12_MAX;
