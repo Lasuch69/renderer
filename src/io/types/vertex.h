@@ -7,15 +7,15 @@ typedef struct Vertex {
 	float position[3];
 	float normal[3];
 	float tangent[3];
-	float texCoord[2];
+	float tex_coord[2];
 } Vertex;
 
 typedef struct PackedVertex {
 	uint16_t position[3];
 	uint8_t tangent[3];
 	uint8_t normal[3];
-	uint8_t texCoord[3];
-	uint8_t texOffset;
+	uint8_t tex_coord[3];
+	uint8_t tex_offset;
 } PackedVertex;
 
 #endif // !VERTEX_H

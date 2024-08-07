@@ -24,26 +24,26 @@ inline float abs(float x) {
 	return *(float *)&n;
 }
 
-inline float signNotZero(float v) {
+inline float sign_not_zero(float v) {
 	return (v >= 0.0) ? 1.0 : -1.0;
 }
 
 // Assumes input is normalized
-inline float32x2 float32x3ToOct(float x, float y, float z) {
+inline float32x2 float32x3_to_oct(float x, float y, float z) {
 	float denom = abs(x) + abs(y) + abs(z);
 	denom = 1.0 / denom;
 
 	float px = x * denom;
 	float py = y * denom;
 
-	float _x = z <= 0.0 ? (1.0 - abs(py)) * signNotZero(px) : px;
-	float _y = z <= 0.0 ? (1.0 - abs(px)) * signNotZero(py) : py;
+	float _x = z <= 0.0 ? (1.0 - abs(py)) * sign_not_zero(px) : px;
+	float _y = z <= 0.0 ? (1.0 - abs(px)) * sign_not_zero(py) : py;
 
 	return { _x, _y };
 }
 
 // Assumes input range of [0..1]
-inline unorm12x2 float32x2ToUnorm12x2(const float32x2 &value) {
+inline unorm12x2 float32x2_to_unorm12x2(const float32x2 &value) {
 	uint16_t x = value.x * UINT12_MAX;
 	uint16_t y = value.y * UINT12_MAX;
 
@@ -57,7 +57,7 @@ inline unorm12x2 float32x2ToUnorm12x2(const float32x2 &value) {
 	return out;
 }
 
-inline float32x2 unorm12x2ToFloat32x2(const unorm12x2 &value) {
+inline float32x2 unorm12x2_to_float32x2(const unorm12x2 &value) {
 	uint32_t i = 0;
 	uint8_t *data = (uint8_t *)&i;
 

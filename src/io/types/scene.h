@@ -1,17 +1,17 @@
 #ifndef SCENE_H
 #define SCENE_H
 
-#include <cstdint>
+#include <cstddef>
 
-#include "mesh.h"
-#include "node.h"
+typedef struct Node Node;
+typedef struct Mesh Mesh;
 
 typedef struct Scene {
 	Node *nodes;
-	uint64_t nodeCount;
+	size_t node_count;
 
 	Mesh *meshes;
-	uint64_t meshCount;
+	size_t mesh_count;
 } Scene;
 
 #endif // !SCENE_H

@@ -28,18 +28,18 @@ inline float max(float a, float b) {
 
 MeshID MeshStorage::meshCreate(const Mesh &mesh) {
 	MeshRD meshRD;
-	meshRD.primitives = new PrimitiveRD[mesh.primitiveCount];
-	meshRD.primitiveCount = mesh.primitiveCount;
+	meshRD.primitives = new PrimitiveRD[mesh.primitive_count];
+	meshRD.primitiveCount = mesh.primitive_count;
 
 	RD &rd = RD::singleton();
 
-	for (uint32_t i = 0; i < mesh.primitiveCount; i++) {
-		const IndexArray &indices = mesh.primitives[i].indices;
-		const VertexArray &vertices = mesh.primitives[i].vertices;
+	for (uint32_t i = 0; i < mesh.primitive_count; i++) {
+		const Buffer &index_buffer = mesh.primitives[i].index_buffer;
+		const Buffer &vertex_buffer = mesh.primitives[i].vertex_buffer;
 
-		meshRD.primitives[i].indexBuffer = rd.indexBufferCreate(indices.data, indices.count * sizeof(uint32_t));
-		meshRD.primitives[i].vertexBuffer = rd.vertexBufferCreate(vertices.data, vertices.count * sizeof(PackedVertex));
-		meshRD.primitives[i].indexCount = indices.count;
+		meshRD.primitives[i].indexBuffer = rd.indexBufferCreate(index_buffer.data, index_buffer.size);
+		meshRD.primitives[i].vertexBuffer = rd.vertexBufferCreate(vertex_buffer.data, vertex_buffer.size);
+		meshRD.primitives[i].indexCount = index_buffer.size / sizeof(uint32_t);
 
 		memcpy(meshRD.primitives[i].aabb.size, mesh.primitives[i].size, sizeof(float) * 3);
 		memcpy(meshRD.primitives[i].aabb.offset, mesh.primitives[i].offset, sizeof(float) * 3);

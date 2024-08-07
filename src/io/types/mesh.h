@@ -1,33 +1,27 @@
 #ifndef MESH_H
 #define MESH_H
 
-#include <cstdint>
+#include <cstddef>
 
-typedef struct IndexArray {
-	uint32_t *data;
-	uint32_t count;
-} IndexArray;
-
-typedef struct VertexArray {
-	uint8_t *data;
-	uint32_t count;
-	bool isPacked;
-} VertexArray;
+typedef struct Buffer {
+	void *data;
+	size_t size;
+} Buffer;
 
 typedef struct Primitive {
+	Buffer index_buffer;
+	Buffer vertex_buffer;
+
 	float size[3];
 	float offset[3];
 
-	IndexArray indices;
-	VertexArray vertices;
-
-	bool hasMaterial;
-	uint64_t materialIndex;
+	size_t material_index;
+	bool has_material;
 } Primitive;
 
 typedef struct Mesh {
 	Primitive *primitives;
-	uint32_t primitiveCount;
+	size_t primitive_count;
 } Mesh;
 
 #endif // !MESH_H

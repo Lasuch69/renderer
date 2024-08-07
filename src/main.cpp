@@ -6,7 +6,6 @@
 #include <SDL2/SDL_vulkan.h>
 
 #include <io/loader.h>
-#include <io/preprocess/mesh_preprocessor.h>
 #include <io/types/scene.h>
 
 #include "rendering/renderer.h"
@@ -75,16 +74,11 @@ int main(int argc, char *argv[]) {
 
 			if (event.type == SDL_DROPFILE) {
 				char *file = event.drop.file;
-				Scene *scene = Loader::sceneLoadGlTF(file);
+				Scene *scene = nullptr;
+				Loader::scene_load(file, scene);
 
-				if (scene != nullptr) {
-					for (uint32_t i = 0; i < scene->meshCount; i++) {
-						MeshPreprocessor::process(&scene->meshes[i]);
-						Renderer::singleton().meshCreate(scene->meshes[i]);
-					}
-
+				if (scene != nullptr)
 					free(scene);
-				}
 
 				SDL_free(file);
 			}

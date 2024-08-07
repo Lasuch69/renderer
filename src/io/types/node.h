@@ -1,11 +1,13 @@
 #ifndef NODE_H
 #define NODE_H
 
-#include <cstdint>
+#include <cstddef>
 
-typedef struct {
-	bool hasMesh;
-	uint64_t meshIndex;
+typedef struct Node {
+	size_t mesh_index;
+	bool has_mesh;
+
+	char *name;
 	float transform[16];
 } Node;
 
