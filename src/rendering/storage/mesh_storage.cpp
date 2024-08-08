@@ -40,20 +40,6 @@ MeshID MeshStorage::mesh_create(const Mesh &mesh) {
 		mesh_rd.primitives[i].index_buffer = rd.index_buffer_create(index_buffer.data, index_buffer.size);
 		mesh_rd.primitives[i].vertex_buffer = rd.vertex_buffer_create(vertex_buffer.data, vertex_buffer.size);
 		mesh_rd.primitives[i].index_count = index_buffer.size / sizeof(uint32_t);
-
-		memcpy(mesh_rd.primitives[i].aabb.size, mesh.primitives[i].size, sizeof(float) * 3);
-		memcpy(mesh_rd.primitives[i].aabb.offset, mesh.primitives[i].offset, sizeof(float) * 3);
-
-		const float *size = mesh.primitives[i].size;
-		const float *offset = mesh.primitives[i].offset;
-
-		mesh_rd.aabb.size[0] = max(mesh_rd.aabb.size[0], size[0]);
-		mesh_rd.aabb.size[1] = max(mesh_rd.aabb.size[1], size[1]);
-		mesh_rd.aabb.size[2] = max(mesh_rd.aabb.size[2], size[2]);
-
-		mesh_rd.aabb.offset[0] = min(mesh_rd.aabb.offset[0], offset[0]);
-		mesh_rd.aabb.offset[1] = min(mesh_rd.aabb.offset[1], offset[1]);
-		mesh_rd.aabb.offset[2] = min(mesh_rd.aabb.offset[2], offset[2]);
 	}
 
 	return m_mesh_owner.insert(mesh_rd);
@@ -90,4 +76,12 @@ void MeshStorage::mesh_instance_set_transform(MeshInstanceID mesh_instance_id, c
 
 void MeshStorage::mesh_instance_destroy(MeshInstanceID mesh_instance_id) {
 	m_mesh_instance_owner.remove(mesh_instance_id);
+}
+
+MeshRD **MeshStorage::mesh_list_get(size_t *size) const {
+	return m_mesh_owner.list(size);
+}
+
+MeshInstanceRD **MeshStorage::mesh_instance_list_get(size_t *size) const {
+	return m_mesh_instance_owner.list(size);
 }

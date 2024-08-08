@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -142,7 +143,31 @@ void RD::buffer_destroy(BufferID buffer) {
 	m_buffer_owner.remove(buffer);
 }
 
-void RD::draw() {
+void RD::cmd_bind_index_buffer(BufferID index_buffer) {
+	assert(m_render_handle.is_active);
+	assert(m_buffer_owner.has(index_buffer));
+
+	VkCommandBuffer command_buffer = m_render_handle.command_buffer;
+	vkCmdBindIndexBuffer(command_buffer, m_buffer_owner.get(index_buffer)->buffer, 0, VK_INDEX_TYPE_UINT32);
+}
+
+void RD::cmd_bind_vertex_buffer(BufferID vertex_buffer) {
+	assert(m_render_handle.is_active);
+	assert(m_buffer_owner.has(vertex_buffer));
+
+	VkDeviceSize offset = 0;
+	VkCommandBuffer command_buffer = m_render_handle.command_buffer;
+	vkCmdBindVertexBuffers(command_buffer, 0, 1, &m_buffer_owner.get(vertex_buffer)->buffer, &offset);
+}
+void RD::cmd_draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset,
+		uint32_t first_instance) {
+	assert(m_render_handle.is_active);
+
+	VkCommandBuffer command_buffer = m_render_handle.command_buffer;
+	vkCmdDrawIndexed(command_buffer, index_count, instance_count, first_index, vertex_offset, first_instance);
+}
+
+void RD::draw_begin() {
 	CHECK_VK_RESULT(
 			vkWaitForFences(m_context.device(), 1, &m_render_fences[m_frame], VK_TRUE, UINT64_MAX) == VK_SUCCESS,
 			"Fence timed out!");
@@ -197,6 +222,18 @@ void RD::draw() {
 	vkCmdSetViewport(command_buffer, 0, 1, &viewport);
 	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
+	m_render_handle.command_buffer = command_buffer;
+	m_render_handle.image_index = image_index;
+	m_render_handle.is_active = true;
+}
+
+void RD::draw_submit() {
+	assert(m_render_handle.is_active);
+
+	VkCommandBuffer command_buffer = m_render_handle.command_buffer;
+	uint32_t image_index = m_render_handle.image_index;
+	m_render_handle.is_active = false;
+
 	vkCmdEndRenderPass(command_buffer);
 	vkEndCommandBuffer(command_buffer);
 
@@ -224,7 +261,7 @@ void RD::draw() {
 	present_info.pSwapchains = &swapchain;
 	present_info.pImageIndices = &image_index;
 
-	result = vkQueuePresentKHR(m_context.present_queue(), &present_info);
+	VkResult result = vkQueuePresentKHR(m_context.present_queue(), &present_info);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_resized) {
 		m_context.window_resize(m_width, m_height);

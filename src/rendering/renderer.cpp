@@ -2,6 +2,7 @@
 #include <cstring>
 
 #include <rendering/device/rendering_device.h>
+#include <rendering/renderer_scene_draw.h>
 #include <rendering/storage/mesh_storage.h>
 
 #include "renderer.h"
@@ -31,7 +32,7 @@ void Renderer::mesh_instance_destroy(MeshInstanceID mesh_instance_id) {
 }
 
 void Renderer::draw() {
-	RD::singleton().draw();
+	RSD::singleton().draw();
 }
 
 void Renderer::window_create(VkSurfaceKHR surface, uint32_t width, uint32_t height) {

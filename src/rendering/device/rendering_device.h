@@ -43,6 +43,14 @@ private:
 
 	ResourceOwner<AllocatedBuffer> m_buffer_owner;
 
+	typedef struct {
+		VkCommandBuffer command_buffer;
+		uint32_t image_index;
+		bool is_active;
+	} RenderHandle;
+
+	RenderHandle m_render_handle;
+
 	VkCommandBuffer _begin_single_time_commands();
 	void _end_single_time_commands(VkCommandBuffer command_buffer);
 
@@ -59,7 +67,13 @@ public:
 	void buffer_upload(BufferID buffer, size_t offset, const void *data, size_t size);
 	void buffer_destroy(BufferID buffer);
 
-	void draw();
+	void cmd_bind_index_buffer(BufferID index_buffer);
+	void cmd_bind_vertex_buffer(BufferID vertex_buffer);
+	void cmd_draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset,
+			uint32_t first_instance);
+
+	void draw_begin();
+	void draw_submit();
 
 	void window_create(VkSurfaceKHR surface, uint32_t width, uint32_t height);
 	void window_resize(uint32_t width, uint32_t height);

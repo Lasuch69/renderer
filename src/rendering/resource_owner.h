@@ -1,7 +1,9 @@
 #ifndef RESOURCE_OWNER_H
 #define RESOURCE_OWNER_H
 
+#include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <unordered_map>
 
 #define NULL_HANDLE 0
@@ -28,6 +30,28 @@ public:
 
 	inline value *get(uint64_t id) const {
 		return (m_map.count(id) != 0) && (id != NULL_HANDLE) ? &m_map[id] : nullptr;
+	}
+
+	inline value **list(size_t *size) const {
+		size_t count = 0;
+		for (auto pair : m_map) {
+			count++;
+		}
+
+		if (count == 0) {
+			*size = count;
+			return nullptr;
+		}
+
+		value **list = (value **)malloc(*size * sizeof(value *));
+
+		size_t i = 0;
+		for (auto pair : m_map) {
+			list[i] = &pair.second;
+			i++;
+		}
+
+		return list;
 	}
 
 	inline bool has(uint64_t id) const {
